@@ -1,0 +1,60 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "disabled_providers": ["opencode"],
+  "provider": {
+    "deepseek": {
+      "whitelist": [
+        "deepseek-chat",
+        "deepseek-reasoner",
+        "deepseek-v4-flash",
+        "deepseek-v4-pro"
+      ]
+    }
+  },
+  "agent": {
+    "plan": {
+      "permission": {
+        "skill": {
+          "*": "deny",
+          "brainstorming": "allow",
+          "building-native-ui": "allow",
+          "expo-api-routes": "allow",
+          "expo-dev-client": "allow",
+          "expo-module": "allow",
+          "native-data-fetching": "allow",
+          "receiving-code-review": "allow",
+          "requesting-code-review": "allow",
+          "systematic-debugging": "allow",
+          "uniwind": "allow",
+          "using-superpowers": "allow",
+          "vercel-react-best-practices": "allow",
+          "verification-before-completion": "allow",
+          "web-design-guidelines": "allow"
+        }
+      }
+    },
+    "build": {
+      "permission": {
+        "skill": {
+          "*": "deny",
+          "brainstorming": "allow",
+          "building-native-ui": "allow",
+          "executing-plans": "allow",
+          "expo-api-routes": "allow",
+          "expo-dev-client": "allow",
+          "expo-module": "allow",
+          "native-data-fetching": "allow",
+          "receiving-code-review": "allow",
+          "requesting-code-review": "allow",
+          "systematic-debugging": "allow",
+          "uniwind": "allow",
+          "using-git-worktrees": "allow",
+          "using-superpowers": "allow",
+          "vercel-react-best-practices": "allow",
+          "verification-before-completion": "allow",
+          "web-design-guidelines": "allow"
+        }
+      }
+    }
+  }
+}

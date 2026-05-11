@@ -1,73 +1,82 @@
-# Minimal Uniwind Template
+# GymTracker
 
-This is a [React Native](https://reactnative.dev/) project built with [Expo](https://expo.dev/) and [React Native Reusables](https://reactnativereusables.com).
+A simple, fast gym workout tracker for managing weekly routines and logging exercises. Built with Expo, React Native Reusables, and SQLite. Runs on iOS, Android, and Web.
 
-It was initialized using the following command, then the `Minimal (Uniwind)` template was selected when prompted:
+## Navigation (5 Bottom Tabs)
 
-```bash
-npx @react-native-reusables/cli@latest init
-```
+| Tab | Purpose |
+|---|---|
+| **Workout** | Log daily exercises — sets, weight, reps |
+| **Routine** | Configure which body parts go on each day (Mon–Sun) |
+| **Explore** | Search/browse all exercises by body part or equipment |
+| **History** | Calendar view of past workouts + weekly summaries |
+| **Settings** | App preferences |
+
+## Exercise Categories (8 Groups)
+
+1. **Chest**  2. **Back**  3. **Shoulders**  4. **Biceps**  5. **Triceps**  6. **Legs**  7. **Core / Abs**  8. **Cardio**
+
+## Core Flows
+
+### Workout (Today)
+- Auto-detects the current day's scheduled body parts from the routine.
+- Horizontal tabs: `[All] [Chest] [Shoulders] [Triceps]` (dynamically filtered to today's parts).
+- Tap an exercise → enter weight + reps → save the set.
+- **Queue mode** (optional): missed body parts carry forward one day.
+
+### Routine
+- Monday through Sunday layout.
+- Select any number of body parts per day.
+
+### Explore
+- Search bar at top.
+- Two collapsible sections: **Body Parts** and **Equipment**.
+- Grid of categories — tap one to see exercises in that category.
+- Search filters across both sections simultaneously.
+
+### History
+- Calendar view. Tap a date to see that day's logged exercises.
+- Side-by-side **Weekly Summary**: body parts worked, total exercises, average weight/reps.
+
+### Settings
+| Setting | Default | Description |
+|---|---|---|
+| Queue mode | Off | On: missed body parts carry forward to the next day (max 1 day). Off: missed parts are skipped. |
+| Theme | System | System / Light / Dark |
+| Disable GIFs | Off | Hides animated exercise GIFs (static images remain) |
+
+## Queue Mode Behaviour
+
+When enabled, if you don't log any sets for a scheduled body part:
+- That body part is queued to the **next calendar day** (even if it has no routine).
+- If that next day is also missed, the queued part is **lost** — it does not cascade further.
+- Queued parts are tracked **per body part**, not per day — partially completed days only queue the missed parts.
+- Duplicate body parts on the same day are merged (shown once).
+
+## Tech Stack
+
+- Compiled with [Expo Router](https://expo.dev/router) (file-based routing)
+- Styled with [Tailwind CSS v4](https://tailwindcss.com/) via [Uniwind](https://uniwind.dev/)
+- UI components from [React Native Reusables](https://github.com/founded-labs/react-native-reusables) (shadcn/ui for React Native)
+- Database: `expo-sqlite`
+- Icons: `lucide-react-native`
+- Animation: `react-native-reanimated` v4
 
 ## Getting Started
 
-To run the development server:
-
 ```bash
-    npm run dev
-    # or
-    yarn dev
-    # or
-    pnpm dev
-    # or
-    bun dev
+npm install
+npm run dev
 ```
 
-This will start the Expo Dev Server. Open the app in:
+- iOS: press `i` (Mac only)
+- Android: press `a`
+- Web: press `w`
 
-- **iOS**: press `i` to launch in the iOS simulator _(Mac only)_
-- **Android**: press `a` to launch in the Android emulator
-- **Web**: press `w` to run in a browser
+Or scan the QR code with [Expo Go](https://expo.dev/go).
 
-You can also scan the QR code using the [Expo Go](https://expo.dev/go) app on your device. This project fully supports running in Expo Go for quick testing on physical devices.
-
-## Adding components
-
-You can add more reusable components using the CLI:
+## Adding UI Components
 
 ```bash
 npx react-native-reusables/cli@latest add [...components]
 ```
-
-> e.g. `npx react-native-reusables/cli@latest add input textarea`
-
-If you don't specify any component names, you'll be prompted to select which components to add interactively. Use the `--all` flag to install all available components at once.
-
-## Project Features
-
-- ⚛️ Built with [Expo Router](https://expo.dev/router)
-- 🎨 Styled with [Tailwind CSS](https://tailwindcss.com/) via [Uniwind](https://uniwind.dev/)
-- 📦 UI powered by [React Native Reusables](https://github.com/founded-labs/react-native-reusables)
-- 🚀 New Architecture enabled
-- 🔥 Edge to Edge enabled
-- 📱 Runs on iOS, Android, and Web
-
-## Learn More
-
-To dive deeper into the technologies used:
-
-- [React Native Docs](https://reactnative.dev/docs/getting-started)
-- [Expo Docs](https://docs.expo.dev/)
-- [Uniwind Docs](https://docs.uniwind.dev/)
-- [React Native Reusables](https://reactnativereusables.com)
-
-## Deploy with EAS
-
-The easiest way to deploy your app is with [Expo Application Services (EAS)](https://expo.dev/eas).
-
-- [EAS Build](https://docs.expo.dev/build/introduction/)
-- [EAS Updates](https://docs.expo.dev/eas-update/introduction/)
-- [EAS Submit](https://docs.expo.dev/submit/introduction/)
-
----
-
-If you enjoy using React Native Reusables, please consider giving it a ⭐ on [GitHub](https://github.com/founded-labs/react-native-reusables). Your support means a lot!
