@@ -138,6 +138,18 @@ export async function getExercisesByEquipment(
   );
 }
 
+export async function getExercisesByEquipmentList(
+  db: SQLiteDatabase,
+  equipments: string[]
+): Promise<ExerciseRow[]> {
+  if (equipments.length === 0) return [];
+  const placeholders = equipments.map(() => '?').join(', ');
+  return db.getAllAsync<ExerciseRow>(
+    `SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises WHERE equipment IN (${placeholders}) ORDER BY name`,
+    ...equipments
+  );
+}
+
 export type ExerciseDetail = ExerciseRow & {
   secondary_muscles: string;
   instruction_steps: string;
@@ -151,4 +163,37 @@ export async function getExerciseById(
     'SELECT * FROM exercises WHERE id = ?',
     id
   );
+}
+
+export type RoutineRow = {
+  day_of_week: number;
+  body_part: string;
+};
+
+export async function getAllRoutines(
+  db: SQLiteDatabase
+): Promise<RoutineRow[]> {
+  return db.getAllAsync<RoutineRow>(
+    'SELECT day_of_week, body_part FROM routines ORDER BY day_of_week, body_part'
+  );
+}
+
+export async function setRoutineDay(
+  db: SQLiteDatabase,
+  dayOfWeek: number,
+  bodyParts: string[]
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'DELETE FROM routines WHERE day_of_week = ?',
+      dayOfWeek
+    );
+    for (const part of bodyParts) {
+      await db.runAsync(
+        'INSERT INTO routines (day_of_week, body_part) VALUES (?, ?)',
+        dayOfWeek,
+        part
+      );
+    }
+  });
 }

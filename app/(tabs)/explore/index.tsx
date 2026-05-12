@@ -4,9 +4,12 @@ import {
 } from '@/lib/database';
 import {
   GOLD_STANDARD_GROUPS,
-  EQUIPMENT_TYPES,
   toGoldStandardGroup,
   formatEquipmentLabel,
+  PRIMARY_EQUIPMENT,
+  DISPLAY_EQUIPMENT,
+  OTHER_EQUIPMENT_LABEL,
+  toConsolidatedEquipment,
 } from '@/lib/exercise-groups';
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { Icon } from '@/components/ui/icon';
@@ -29,6 +32,7 @@ import {
   ScrollView,
   TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 
 function CollapsibleSection({
@@ -49,6 +53,9 @@ function CollapsibleSection({
       <Pressable
         onPress={onToggle}
         className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted"
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
       >
         <Text className="text-base font-semibold text-foreground flex-1" numberOfLines={1}>
           {title}
@@ -61,6 +68,7 @@ function CollapsibleSection({
         <Icon
           as={open ? ChevronDown : ChevronRight}
           className="size-5 text-muted-foreground"
+          aria-hidden={true}
         />
       </Pressable>
       {open && children}
@@ -83,6 +91,8 @@ function CategoryGrid({
           onPress={item.onPress}
           style={{ width: `${100 / columns}%` }}
           className="p-2"
+          aria-label={`${item.label}, ${item.count} exercises`}
+          accessibilityRole="button"
         >
           <View className="bg-card border border-border rounded-lg p-3 items-start active:bg-muted">
             <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
@@ -115,10 +125,11 @@ function ExerciseListItem({
             source={imageSource}
             className="size-12 rounded-md bg-muted"
             resizeMode="cover"
+            accessibilityLabel={capitalizeWords(item.name)}
           />
         ) : (
           <View className="size-12 rounded-md bg-muted items-center justify-center">
-            <Icon as={Search} className="size-5 text-muted-foreground" />
+            <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
           </View>
         )}
         <View className="flex-1 min-w-0">
@@ -129,7 +140,7 @@ function ExerciseListItem({
             {capitalizeWords(item.equipment) || 'N/A'}
           </Text>
         </View>
-        <Icon as={ChevronRight} className="size-4 text-muted-foreground" />
+        <Icon as={ChevronRight} className="size-4 text-muted-foreground" aria-hidden={true} />
       </View>
     </Pressable>
   );
@@ -138,12 +149,16 @@ function ExerciseListItem({
 export default function ExploreIndex() {
   const db = useSQLiteContext();
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [bodyPartsOpen, setBodyPartsOpen] = useState(true);
   const [equipmentOpen, setEquipmentOpen] = useState(true);
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    getAllExercises(db).then(setExercises);
+    getAllExercises(db).then((data) => {
+      setExercises(data);
+      setLoading(false);
+    });
   }, [db]);
 
   const groupCounts = useMemo(() => {
@@ -158,17 +173,18 @@ export default function ExploreIndex() {
 
   const equipmentCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const type of EQUIPMENT_TYPES) counts[type] = 0;
+    for (const eq of DISPLAY_EQUIPMENT) counts[eq] = 0;
     for (const ex of exercises) {
-      if (ex.equipment && counts[ex.equipment] !== undefined) {
-        counts[ex.equipment]++;
+      if (ex.equipment) {
+        const consolidated = toConsolidatedEquipment(ex.equipment);
+        counts[consolidated]++;
       }
     }
     return counts;
   }, [exercises]);
 
   const equipmentTypeCount = useMemo(
-    () => EQUIPMENT_TYPES.filter((t) => (equipmentCounts[t] ?? 0) > 0).length,
+    () => DISPLAY_EQUIPMENT.filter((t) => (equipmentCounts[t] ?? 0) > 0).length,
     [equipmentCounts]
   );
 
@@ -190,19 +206,26 @@ export default function ExploreIndex() {
     <View className="flex-1 bg-background">
       <View className="px-4 pt-2 pb-2">
         <View className="flex-row items-center bg-muted rounded-lg px-3 h-10">
-          <Icon as={Search} className="size-4 text-muted-foreground mr-2" />
+          <Icon as={Search} className="size-4 text-muted-foreground mr-2" aria-hidden={true} />
           <TextInput
             className="flex-1 text-sm text-foreground"
-            placeholder="Search exercises..."
+            placeholder="Search exercises…"
             placeholderTextColor="hsl(0 0% 45%)"
             value={searchText}
             onChangeText={setSearchText}
             autoCapitalize="none"
             autoCorrect={false}
+            spellCheck={false}
+            autoComplete="off"
+            aria-label="Search exercises"
           />
           {searchText.length > 0 && (
-            <Pressable onPress={() => setSearchText('')} className="p-1">
-              <Icon as={X} className="size-4 text-muted-foreground" />
+            <Pressable
+              onPress={() => setSearchText('')}
+              className="p-1"
+              aria-label="Clear search"
+            >
+              <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
             </Pressable>
           )}
         </View>
@@ -211,27 +234,44 @@ export default function ExploreIndex() {
       {showSearch ? (
         <View className="flex-1">
           <View className="flex-row items-center px-4 py-2 border-b border-border">
-            <Pressable onPress={() => setSearchText('')} className="p-1 mr-2">
-              <Icon as={ArrowLeft} className="size-5 text-foreground" />
+            <Pressable
+              onPress={() => setSearchText('')}
+              className="p-1 mr-2"
+              aria-label="Back to explore"
+            >
+              <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
             </Pressable>
             <Text className="text-base font-semibold text-foreground flex-1">
-              {searchResults.length} results for "{searchText}"
+              {searchResults.length} results for {'\u201C'}{searchText}{'\u201D'}
             </Text>
           </View>
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ExerciseListItem
-                item={item}
-                onPress={() => {
-                  const g = toGoldStandardGroup(item.body_part, item.target);
-                  router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
-                }}
-              />
-            )}
-            keyboardShouldPersistTaps="handled"
-          />
+          {searchResults.length === 0 ? (
+            <View className="flex-1 items-center justify-center px-8 py-20">
+              <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
+              <Text className="text-base text-muted-foreground text-center">
+                No exercises found for {'\u201C'}{searchText}{'\u201D'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <ExerciseListItem
+                  item={item}
+                  onPress={() => {
+                    const g = toGoldStandardGroup(item.body_part, item.target);
+                    router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
+                  }}
+                />
+              )}
+              keyboardShouldPersistTaps="handled"
+            />
+          )}
+        </View>
+      ) : loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator />
         </View>
       ) : (
         <ScrollView keyboardShouldPersistTaps="handled">
@@ -259,12 +299,12 @@ export default function ExploreIndex() {
           >
             <CategoryGrid
               columns={2}
-              items={EQUIPMENT_TYPES.filter(
+              items={DISPLAY_EQUIPMENT.filter(
                 (t) => (equipmentCounts[t] ?? 0) > 0
               ).map((t) => ({
                 label: formatEquipmentLabel(t),
                 count: equipmentCounts[t] ?? 0,
-                onPress: () => router.push(`/explore/${t}`),
+                onPress: () => router.push(`/explore/${t.toLowerCase()}`),
               }))}
             />
           </CollapsibleSection>

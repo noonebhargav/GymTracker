@@ -71,7 +71,44 @@ export const EQUIPMENT_TYPES = [
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 
+export const PRIMARY_EQUIPMENT: readonly string[] = [
+  'body weight',
+  'dumbbell',
+  'cable',
+  'barbell',
+  'leverage machine',
+  'band',
+  'smith machine',
+  'kettlebell',
+  'weighted',
+  'stability ball',
+  'ez barbell',
+];
+
+export const OTHER_EQUIPMENT_LABEL = 'Other';
+
+export const DISPLAY_EQUIPMENT: readonly string[] = [
+  ...PRIMARY_EQUIPMENT,
+  OTHER_EQUIPMENT_LABEL,
+];
+
+const PRIMARY_EQUIPMENT_SET = new Set<string>(PRIMARY_EQUIPMENT);
+
+export function toConsolidatedEquipment(raw: string): string {
+  if (PRIMARY_EQUIPMENT_SET.has(raw)) return raw;
+  return OTHER_EQUIPMENT_LABEL;
+}
+
+export function isOtherEquipment(raw: string): boolean {
+  return !PRIMARY_EQUIPMENT_SET.has(raw);
+}
+
+export const OTHER_EQUIPMENT_TYPES: string[] = EQUIPMENT_TYPES.filter(
+  (t) => !PRIMARY_EQUIPMENT_SET.has(t)
+);
+
 export function formatEquipmentLabel(type: string): string {
+  if (type === OTHER_EQUIPMENT_LABEL) return type;
   return type
     .split(' ')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
