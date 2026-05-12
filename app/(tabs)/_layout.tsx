@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 import { Tabs } from 'expo-router';
 import { Dumbbell, CalendarDays, Search, Clock, Settings, Menu, Moon, Sun } from 'lucide-react-native';
@@ -16,6 +16,18 @@ export default function TabLayout() {
   const { colors } = useTheme();
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const handler = (e: PopStateEvent) => {
+      if (drawerOpen) {
+        e.preventDefault();
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [drawerOpen]);
 
   return (
     <Drawer

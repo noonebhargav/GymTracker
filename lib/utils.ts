@@ -7,8 +7,5 @@ export function cn(...inputs: ClassValue[]) {
 
 export function capitalizeWords(text: string | null | undefined): string {
   if (!text) return '';
-  return text
-    .split(' ')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  return text.replace(/\b\w/g, (char) => char.toUpperCase());
 }

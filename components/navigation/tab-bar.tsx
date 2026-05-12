@@ -50,20 +50,20 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               flex: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingTop: 4,
-              paddingBottom: 4,
+              paddingTop: 8,
+              paddingBottom: 8,
               minWidth: 0,
-              borderTopWidth: 2,
+              borderTopWidth: 3,
               borderTopColor: isFocused ? colors.primary : 'transparent',
             }}
           >
-            {options.tabBarIcon?.({ focused: isFocused, color, size: 20 })}
+            {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
             <RNText
               style={{
                 color,
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: isFocused ? '600' : '400',
-                marginTop: 2,
+                marginTop: 4,
                 textAlign: 'center',
               }}
               numberOfLines={1}

@@ -1,7 +1,5 @@
 import {
   getAllExercises,
-  getExerciseById,
-  type ExerciseDetail,
   type ExerciseRow,
 } from '@/lib/database';
 import {
@@ -9,10 +7,8 @@ import {
   EQUIPMENT_TYPES,
   toGoldStandardGroup,
   formatEquipmentLabel,
-  type GoldStandardGroup,
 } from '@/lib/exercise-groups';
 import { getExerciseImage } from '@/lib/exercise-assets';
-import { ExerciseDetailModal } from '@/components/exercise-detail';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -24,9 +20,9 @@ import {
   X,
 } from 'lucide-react-native';
 import { capitalizeWords } from '@/lib/utils';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  BackHandler,
   FlatList,
   Image,
   Pressable,
@@ -89,10 +85,7 @@ function CategoryGrid({
           className="p-2"
         >
           <View className="bg-card border border-border rounded-lg p-3 items-start active:bg-muted">
-            <Text
-              className="text-sm font-medium text-foreground"
-              numberOfLines={1}
-            >
+            <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
               {item.label}
             </Text>
             <Text className="text-xs text-muted-foreground mt-1">
@@ -110,15 +103,12 @@ function ExerciseListItem({
   onPress,
 }: {
   item: ExerciseRow;
-  onPress: (id: string) => void;
+  onPress: () => void;
 }) {
   const imageSource = getExerciseImage(item.assetId);
 
   return (
-    <Pressable
-      onPress={() => onPress(item.id)}
-      className="active:bg-muted"
-    >
+    <Pressable onPress={onPress} className="active:bg-muted">
       <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
         {imageSource ? (
           <Image
@@ -132,10 +122,7 @@ function ExerciseListItem({
           </View>
         )}
         <View className="flex-1 min-w-0">
-          <Text
-            className="text-sm font-medium text-foreground"
-            numberOfLines={2}
-          >
+          <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
             {capitalizeWords(item.name)}
           </Text>
           <Text className="text-xs text-muted-foreground mt-0.5">
@@ -148,22 +135,12 @@ function ExerciseListItem({
   );
 }
 
-export default function ExploreTab() {
+export default function ExploreIndex() {
   const db = useSQLiteContext();
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [bodyPartsOpen, setBodyPartsOpen] = useState(true);
   const [equipmentOpen, setEquipmentOpen] = useState(true);
-  const [selectedGroup, setSelectedGroup] = useState<GoldStandardGroup | null>(
-    null
-  );
-  const [selectedEquipment, setSelectedEquipment] = useState<string | null>(
-    null
-  );
-  const [detailExercise, setDetailExercise] = useState<ExerciseDetail | null>(
-    null
-  );
-  const [detailVisible, setDetailVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     getAllExercises(db).then(setExercises);
@@ -195,72 +172,19 @@ export default function ExploreTab() {
     [equipmentCounts]
   );
 
-  const showResults = searchQuery.length > 0;
-  const showCategory =
-    selectedGroup !== null || selectedEquipment !== null;
+  const showSearch = searchText.length > 0;
 
-  const filteredExercises = useMemo(() => {
-    if (showResults) {
-      const q = searchQuery.toLowerCase();
-      return exercises.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.body_part.toLowerCase().includes(q) ||
-          e.target?.toLowerCase().includes(q) ||
-          e.equipment?.toLowerCase().includes(q)
-      );
-    }
-    if (selectedGroup) {
-      return exercises.filter(
-        (e) => toGoldStandardGroup(e.body_part, e.target) === selectedGroup
-      );
-    }
-    if (selectedEquipment) {
-      return exercises.filter((e) => e.equipment === selectedEquipment);
-    }
-    return [];
-  }, [exercises, searchQuery, selectedGroup, selectedEquipment, showResults]);
-
-  const clearFilters = useCallback(() => {
-    setSearchQuery('');
-    setSelectedGroup(null);
-    setSelectedEquipment(null);
-  }, []);
-
-  const handleSelectGroup = useCallback((group: GoldStandardGroup) => {
-    setSelectedGroup(group);
-    setSearchQuery('');
-    setSelectedEquipment(null);
-  }, []);
-
-  const handleSelectEquipment = useCallback((equipment: string) => {
-    setSelectedEquipment(equipment);
-    setSearchQuery('');
-    setSelectedGroup(null);
-  }, []);
-
-  const handleExercisePress = useCallback(
-    async (id: string) => {
-      const detail = await getExerciseById(db, id);
-      if (detail) {
-        setDetailExercise(detail);
-        setDetailVisible(true);
-      }
-    },
-    [db]
-  );
-
-  useEffect(() => {
-    const handler = () => {
-      if (showResults || showCategory) {
-        clearFilters();
-        return true;
-      }
-      return false;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', handler);
-    return () => sub.remove();
-  }, [showResults, showCategory, clearFilters]);
+  const searchResults = useMemo(() => {
+    if (!showSearch) return [];
+    const q = searchText.toLowerCase();
+    return exercises.filter(
+      (e) =>
+        e.name.toLowerCase().includes(q) ||
+        e.body_part.toLowerCase().includes(q) ||
+        e.target?.toLowerCase().includes(q) ||
+        e.equipment?.toLowerCase().includes(q)
+    );
+  }, [exercises, searchText, showSearch]);
 
   return (
     <View className="flex-1 bg-background">
@@ -271,46 +195,39 @@ export default function ExploreTab() {
             className="flex-1 text-sm text-foreground"
             placeholder="Search exercises..."
             placeholderTextColor="hsl(0 0% 45%)"
-            value={searchQuery}
-            onChangeText={(text) => {
-              setSearchQuery(text);
-              if (text.length > 0) {
-                setSelectedGroup(null);
-                setSelectedEquipment(null);
-              }
-            }}
+            value={searchText}
+            onChangeText={setSearchText}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} className="p-1">
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} className="p-1">
               <Icon as={X} className="size-4 text-muted-foreground" />
             </Pressable>
           )}
         </View>
       </View>
 
-      {showResults || showCategory ? (
+      {showSearch ? (
         <View className="flex-1">
           <View className="flex-row items-center px-4 py-2 border-b border-border">
-            <Pressable onPress={clearFilters} className="p-1 mr-2">
+            <Pressable onPress={() => setSearchText('')} className="p-1 mr-2">
               <Icon as={ArrowLeft} className="size-5 text-foreground" />
             </Pressable>
             <Text className="text-base font-semibold text-foreground flex-1">
-              {showResults
-                ? `${filteredExercises.length} results for "${searchQuery}"`
-                : selectedGroup
-                  ? `${selectedGroup} (${filteredExercises.length})`
-                  : `${formatEquipmentLabel(selectedEquipment!)} (${filteredExercises.length})`}
+              {searchResults.length} results for "{searchText}"
             </Text>
           </View>
           <FlatList
-            data={filteredExercises}
+            data={searchResults}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <ExerciseListItem
                 item={item}
-                onPress={handleExercisePress}
+                onPress={() => {
+                  const g = toGoldStandardGroup(item.body_part, item.target);
+                  router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
+                }}
               />
             )}
             keyboardShouldPersistTaps="handled"
@@ -329,7 +246,7 @@ export default function ExploreTab() {
               items={GOLD_STANDARD_GROUPS.map((g) => ({
                 label: g,
                 count: groupCounts[g] ?? 0,
-                onPress: () => handleSelectGroup(g),
+                onPress: () => router.push(`/explore/${g.toLowerCase()}`),
               }))}
             />
           </CollapsibleSection>
@@ -347,21 +264,12 @@ export default function ExploreTab() {
               ).map((t) => ({
                 label: formatEquipmentLabel(t),
                 count: equipmentCounts[t] ?? 0,
-                onPress: () => handleSelectEquipment(t),
+                onPress: () => router.push(`/explore/${t}`),
               }))}
             />
           </CollapsibleSection>
         </ScrollView>
       )}
-
-      <ExerciseDetailModal
-        exercise={detailExercise}
-        visible={detailVisible}
-        onClose={() => {
-          setDetailVisible(false);
-          setDetailExercise(null);
-        }}
-      />
     </View>
   );
 }
