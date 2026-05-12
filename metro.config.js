@@ -1,12 +1,20 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { withUniwindConfig } = require('uniwind/metro');
 
+/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+config.resolver.assetExts.push('wasm');
+
+config.server.enhanceMiddleware = (middleware) => {
+  return (req, res, next) => {
+    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    middleware(req, res, next);
+  };
+};
+
 module.exports = withUniwindConfig(config, {
-  // relative path to your global.css file (from previous step)
   cssEntryFile: './global.css',
-  // (optional) path where we gonna auto-generate typings
-  // defaults to project's root
   dtsFile: './uniwind-types.d.ts',
 });
