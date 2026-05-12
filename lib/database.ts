@@ -13,6 +13,16 @@ type ExerciseSeed = {
   assetId?: string;
 };
 
+export type ExerciseRow = {
+  id: string;
+  name: string;
+  body_part: string;
+  target: string | null;
+  muscle_group: string | null;
+  equipment: string | null;
+  assetId: string | null;
+};
+
 export async function initAndSeedDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -91,4 +101,54 @@ export async function getExerciseCount(db: SQLiteDatabase): Promise<number> {
     'SELECT COUNT(*) as count FROM exercises'
   );
   return row?.count ?? 0;
+}
+
+export async function getAllExercises(
+  db: SQLiteDatabase
+): Promise<ExerciseRow[]> {
+  return db.getAllAsync<ExerciseRow>(
+    'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises ORDER BY name'
+  );
+}
+
+export async function searchExercises(
+  db: SQLiteDatabase,
+  query: string
+): Promise<ExerciseRow[]> {
+  const pattern = `%${query}%`;
+  return db.getAllAsync<ExerciseRow>(
+    `SELECT id, name, body_part, target, muscle_group, equipment, assetId
+     FROM exercises
+     WHERE name LIKE ? OR body_part LIKE ? OR target LIKE ? OR equipment LIKE ?
+     ORDER BY name`,
+    pattern,
+    pattern,
+    pattern,
+    pattern
+  );
+}
+
+export async function getExercisesByEquipment(
+  db: SQLiteDatabase,
+  equipment: string
+): Promise<ExerciseRow[]> {
+  return db.getAllAsync<ExerciseRow>(
+    'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises WHERE equipment = ? ORDER BY name',
+    equipment
+  );
+}
+
+export type ExerciseDetail = ExerciseRow & {
+  secondary_muscles: string;
+  instruction_steps: string;
+};
+
+export async function getExerciseById(
+  db: SQLiteDatabase,
+  id: string
+): Promise<ExerciseDetail | null> {
+  return db.getFirstAsync<ExerciseDetail>(
+    'SELECT * FROM exercises WHERE id = ?',
+    id
+  );
 }
