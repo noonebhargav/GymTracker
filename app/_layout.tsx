@@ -9,6 +9,9 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'react-native';
 import { useEffect } from 'react';
 import { useUniwind } from 'uniwind';
+import * as SystemUI from 'expo-system-ui';
+
+SystemUI.setBackgroundColorAsync('transparent');
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,6 +28,7 @@ export default function RootLayout() {
       <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
         <PortalHost />
       </SQLiteProvider>

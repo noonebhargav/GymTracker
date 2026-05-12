@@ -8,7 +8,7 @@
 | 02 | Database | done |
 | 03 | Explore Tab | done |
 | 04 | Routine Tab | done |
-| 05 | Workout Tab | pending |
+| 05 | Workout Tab | done |
 | 06 | History Tab | pending |
 | 07 | Settings Tab | pending |
 
@@ -64,6 +64,48 @@
 - Added diagnostic `<script>` that warns if `SharedArrayBuffer` is unavailable
 - `metro.config.js` already had correct headers via `enhanceMiddleware`
 
+### 21. Android Modal White Flash
+- `presentation: 'modal'` on Android has a known white flash during animation
+- Root cause: Android system UI default white background bleeds through
+- Fix: `import * as SystemUI from 'expo-system-ui'` + `SystemUI.setBackgroundColorAsync('transparent')` in root `_layout.tsx`
+- Ref: https://github.com/expo/expo/issues/27099
+
+### 22. ScrollView Height Stretching on RN Web
+- Horizontal `ScrollView` children with `items-center shrink-0` stretch to 260+ px on web
+- Root cause: RN Web's ScrollView content container fills available flex space, and `shrink-0` prevents width-shrinking but height still stretches
+- Fix: Remove wrapping `<View className="items-center shrink-0">`, render `Pressable` pills directly inside ScrollView
+
+### 23. Reanimated CollapsibleContent Rendering Issue
+- Starting `height` shared value at `0` prevents `onLayout` from firing on child content
+- Fix: Use `layoutReady` shared value flag — render `height: undefined` (auto) until `onLayout` fires, then switch to animated `height` value
+- Better approach (final): moved to subroute — no animation needed
+
+### 24. Expo Router Cross-Tab Navigation
+- `router.push('/explore/chest/123')` from workout tab switches tabs and pushes onto explore Stack
+- Tapping active tab icon does NOT reset to root by default (custom TabBar guards with `!isFocused`)
+- Solution for exercise detail: use root-level modal `/exercise-detail/{id}` instead of cross-tab navigation — back gesture naturally returns to source
+
+### 25. Workout Subroute Architecture
+- `app/(tabs)/workout/[tab]/[id].tsx` — full-screen set editor, pushed onto workout Stack
+- Exercise info card navigates to `app/exercise-detail/[id].tsx` (root Stack modal, `presentation: 'modal'`)
+- `app/(tabs)/workout/[tab].tsx` — file, not directory — must NOT create `[tab]/` directory with `index.tsx` (would conflict)
+- Stack screens: `index`, `[tab]`, `[tab]/[id]` all declared in `_layout.tsx`
+- `[tab]/[id]` uses `animation: 'slide_from_right'` for proper push/pop feel
+
+### 26. Set Editor Design Decisions
+- Fast steppers: weight ±10/20 (kg/lbs), reps ±5
+- Slow steppers: weight ±2.5/5, reps ±1
+- Icons: `ChevronsLeft`, `ChevronLeft`, `ChevronRight`, `ChevronsRight` (no text `<<`/`>>`)
+- Remove set: `MinusCircle` icon on Set header row (right-aligned), hidden when only 1 set
+- Set numbering: `Set {idx + 1}` auto-renumbers correctly via `filter`
+- Mark as Done / Remove: ternary — never both visible
+- `isDirty` check: `JSON.stringify(setValues) !== JSON.stringify(initialSetValues)` — fine here (single screen, not FlatList)
+
+### 27. Routine Refresh on Tab Switch
+- `useFocusEffect` in `workout-screen.tsx` must reload `getAllRoutines(db)` to pick up routine changes
+- `Promise.all` already loads `queue_enabled` and `completedToday` — adding routines is one more promise
+- Rebuild `Map<number, Set<string>>` from fresh rows each time
+
 ---
 
 ## Key Files Created/Modified This Session
@@ -76,3 +118,15 @@
 | `app/(tabs)/explore/index.tsx` | Equipment consolidation + a11y fixes + empty states + unicode fixes |
 | `app/(tabs)/explore/[filter]/index.tsx` | "Other" handling + `getExercisesByEquipmentList` + a11y fixes |
 | `app/+html.tsx` | COEP/COOP meta tags + SharedArrayBuffer diagnostic script |
+
+## Session 3 — Key Files
+
+| File | Purpose |
+|---|---|
+| `components/workout-screen.tsx` | Simplified: tabs, search, exercise list. Inline editing removed — navigates to set editor subroute |
+| `app/(tabs)/workout/_layout.tsx` | Added `[tab]/[id]` screen with `slide_from_right` animation |
+| `app/(tabs)/workout/[tab]/[id].tsx` | Full-screen set editor: chevron steppers, remove set, Mark as Done/Remove |
+| `app/exercise-detail/[id].tsx` | Modal exercise detail (GIF + instructions), root Stack |
+| `app/_layout.tsx` | Registered modal screen + `SystemUI.setBackgroundColorAsync('transparent')` fix |
+| `components/navigation/tab-bar.tsx` | No change (reverted) — `!isFocused` guard preserved |
+| `lib/database.ts` | Added 3 indexes on `workout_logs` table |

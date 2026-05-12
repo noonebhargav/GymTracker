@@ -63,6 +63,10 @@ export async function initAndSeedDatabase(db: SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_workout_logs_date_exercise ON workout_logs(date_logged, exercise_id);
+    CREATE INDEX IF NOT EXISTS idx_workout_logs_exercise_date ON workout_logs(exercise_id, date_logged);
+    CREATE INDEX IF NOT EXISTS idx_workout_logs_body_part_date ON workout_logs(body_part, date_logged);
   `);
 
   const sealed = await db.getFirstAsync<{ value: string }>(
@@ -196,4 +200,149 @@ export async function setRoutineDay(
       );
     }
   });
+}
+
+export async function getSetting(
+  db: SQLiteDatabase,
+  key: string
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?',
+    key
+  );
+  return row?.value ?? null;
+}
+
+export async function setSetting(
+  db: SQLiteDatabase,
+  key: string,
+  value: string
+): Promise<void> {
+  await db.runAsync(
+    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+    key,
+    value
+  );
+}
+
+export async function getLoggedBodyPartsForDate(
+  db: SQLiteDatabase,
+  date: string
+): Promise<string[]> {
+  const rows = await db.getAllAsync<{ body_part: string }>(
+    'SELECT DISTINCT body_part FROM workout_logs WHERE date_logged = ?',
+    date
+  );
+  return rows.map((r) => r.body_part);
+}
+
+export type RecentExerciseRow = {
+  exercise_id: string;
+  last_date: string;
+};
+
+export async function getRecentExercises(
+  db: SQLiteDatabase,
+  bodyParts: string[],
+  limit = 20
+): Promise<RecentExerciseRow[]> {
+  if (bodyParts.length === 0) return [];
+  const placeholders = bodyParts.map(() => '?').join(', ');
+  return db.getAllAsync<RecentExerciseRow>(
+    `SELECT exercise_id, MAX(date_logged) as last_date
+     FROM workout_logs
+     WHERE body_part IN (${placeholders})
+     GROUP BY exercise_id
+     ORDER BY last_date DESC
+     LIMIT ?`,
+    ...bodyParts,
+    limit
+  );
+}
+
+export type WorkoutSetRow = {
+  set_number: number;
+  weight: number;
+  reps: number;
+};
+
+export async function getLastWorkoutSets(
+  db: SQLiteDatabase,
+  exerciseId: string
+): Promise<WorkoutSetRow[]> {
+  return db.getAllAsync<WorkoutSetRow>(
+    `SELECT set_number, weight, reps
+     FROM workout_logs
+     WHERE exercise_id = ?
+       AND date_logged = (
+         SELECT MAX(date_logged) FROM workout_logs WHERE exercise_id = ?
+       )
+     ORDER BY set_number`,
+    exerciseId,
+    exerciseId
+  );
+}
+
+export type WorkoutSetInput = {
+  exercise_id: string;
+  set_number: number;
+  weight: number;
+  reps: number;
+  date_logged: string;
+  body_part: string;
+};
+
+export async function insertWorkoutSets(
+  db: SQLiteDatabase,
+  sets: WorkoutSetInput[]
+): Promise<void> {
+  if (sets.length === 0) return;
+  await db.withTransactionAsync(async () => {
+    for (const s of sets) {
+      await db.runAsync(
+        `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        s.exercise_id,
+        s.set_number,
+        s.weight,
+        s.reps,
+        s.date_logged,
+        s.body_part
+      );
+    }
+  });
+}
+
+export async function deleteWorkoutSets(
+  db: SQLiteDatabase,
+  date: string,
+  exerciseId: string
+): Promise<void> {
+  await db.runAsync(
+    'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
+    date,
+    exerciseId
+  );
+}
+
+export async function getWorkoutLogsForToday(
+  db: SQLiteDatabase,
+  date: string
+): Promise<{ exercise_id: string }[]> {
+  return db.getAllAsync<{ exercise_id: string }>(
+    'SELECT DISTINCT exercise_id FROM workout_logs WHERE date_logged = ?',
+    date
+  );
+}
+
+export async function getWorkoutSetsForDate(
+  db: SQLiteDatabase,
+  date: string,
+  exerciseId: string
+): Promise<WorkoutSetRow[]> {
+  return db.getAllAsync<WorkoutSetRow>(
+    'SELECT set_number, weight, reps FROM workout_logs WHERE date_logged = ? AND exercise_id = ? ORDER BY set_number',
+    date,
+    exerciseId
+  );
 }
