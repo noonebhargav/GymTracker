@@ -1,6 +1,6 @@
 # Phase 3: Explore Tab
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 Browse/search all exercises by body part or equipment. Two collapsible sections with a search bar.
@@ -10,11 +10,11 @@ Browse/search all exercises by body part or equipment. Two collapsible sections 
 - Phase 2 (Database)
 
 ## Acceptance Criteria
-- [ ] Search bar filters across body parts and equipment
-- [ ] Two collapsible sections: Body Parts (8 groups) and Equipment
-- [ ] Grid of categories — tap one to see exercises in that category
-- [ ] Exercise images displayed
-- [ ] Search updates results in real-time
+- [x] Search bar filters across body parts and equipment
+- [x] Two collapsible sections: Body Parts (8 groups) and Equipment
+- [x] Grid of categories — tap one to see exercises in that category
+- [x] Exercise images displayed
+- [x] Search updates results in real-time
 
 ## Technical Notes
 - Uses 8 gold standard body part groups
