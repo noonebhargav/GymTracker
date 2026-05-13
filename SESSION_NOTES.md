@@ -9,8 +9,8 @@
 | 03 | Explore Tab | done |
 | 04 | Routine Tab | done |
 | 05 | Workout Tab | done |
-| 06 | History Tab | pending |
-| 07 | Settings Tab | pending |
+| 06 | History Tab | done |
+| 07 | Settings Tab | done |
 
 ---
 

@@ -1,6 +1,6 @@
 # Phase 7: Settings Tab
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 App preferences — theme, queue mode, GIF toggle.
@@ -10,13 +10,17 @@ App preferences — theme, queue mode, GIF toggle.
 - Phase 2 (Database)
 
 ## Acceptance Criteria
-- [ ] Theme toggle: System / Light / Dark
-- [ ] Queue mode toggle: On / Off
-- [ ] Disable GIFs toggle: On / Off
-- [ ] All settings persist across app restarts
-- [ ] Theme changes apply immediately
+- [x] Theme toggle: System / Light / Dark
+- [x] Queue mode toggle: On / Off
+- [x] Disable GIFs toggle: On / Off
+- [x] All settings persist across app restarts
+- [x] Theme changes apply immediately
+- [x] Accent color picker (9 colors)
+- [x] Settings sections reordered (General → Defaults → Appearance)
 
 ## Technical Notes
 - Uses settings table in SQLite
 - Theme changes via Uniwind.setTheme()
+- Accent colors via Uniwind.updateCSSVariables()
+- Shared accent store for instant tab bar updates
 - Queue mode affects Workout tab behavior (Phase 5)

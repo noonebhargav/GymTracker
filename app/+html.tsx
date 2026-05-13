@@ -12,27 +12,26 @@ export default function Root({ children }: PropsWithChildren) {
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
         />
 
-        <meta
-          httpEquiv="Cross-Origin-Opener-Policy"
-          content="same-origin"
-        />
-        <meta
-          httpEquiv="Cross-Origin-Embedder-Policy"
-          content="credentialless"
-        />
+        {/*
+          Cross-origin isolation for OPFS/SQLite requires actual HTTP response
+          headers, not <meta httpEquiv> tags. Browsers ignore these as <meta>.
+          Use scripts/serve-dist.js for local testing or configure your web
+          server to send:
+            Cross-Origin-Opener-Policy: same-origin
+            Cross-Origin-Embedder-Policy: credentialless
+        */}
 
         <ScrollViewStyleReset />
 
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if (
-                typeof SharedArrayBuffer === 'undefined' &&
-                document.location.hostname !== 'localhost'
-              ) {
+              if (typeof SharedArrayBuffer === 'undefined') {
                 console.warn(
-                  'SharedArrayBuffer is not available. SQLite (OPFS) requires cross-origin isolation headers.',
-                  'Ensure your web server sends Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: credentialless'
+                  '[GymTracker] SharedArrayBuffer is not available.'
+                  + ' SQLite (OPFS) requires cross-origin isolation headers:'
+                  + ' Cross-Origin-Opener-Policy: same-origin,'
+                  + ' Cross-Origin-Embedder-Policy: credentialless'
                 );
               }
             `,
