@@ -77,7 +77,7 @@ function StepperRow({
             className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Decrease ${label} by ${fastStep}`}
           >
-            <Icon as={ChevronsLeft} className="size-4 text-muted-foreground" aria-hidden={true} />
+              <Icon as={ChevronsLeft} className="size-4 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
         <Pressable

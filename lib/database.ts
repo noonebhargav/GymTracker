@@ -346,3 +346,92 @@ export async function getWorkoutSetsForDate(
     exerciseId
   );
 }
+
+export type WorkoutDateRow = {
+  date_logged: string;
+};
+
+export async function getWorkoutDates(
+  db: SQLiteDatabase
+): Promise<WorkoutDateRow[]> {
+  return db.getAllAsync<WorkoutDateRow>(
+    'SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged'
+  );
+}
+
+export type DateRangeRow = {
+  first_date: string | null;
+  last_date: string | null;
+};
+
+export async function getWorkoutDateRange(
+  db: SQLiteDatabase
+): Promise<DateRangeRow | null> {
+  return db.getFirstAsync<DateRangeRow>(
+    'SELECT MIN(date_logged) as first_date, MAX(date_logged) as last_date FROM workout_logs'
+  );
+}
+
+export type DayWorkoutDetailRow = {
+  exercise_id: string;
+  exercise_name: string;
+  body_part: string;
+  equipment: string | null;
+  assetId: string | null;
+  set_number: number;
+  weight: number;
+  reps: number;
+};
+
+export async function getDayWorkoutDetail(
+  db: SQLiteDatabase,
+  date: string
+): Promise<DayWorkoutDetailRow[]> {
+  return db.getAllAsync<DayWorkoutDetailRow>(
+    `SELECT
+      wl.exercise_id,
+      e.name as exercise_name,
+      wl.body_part,
+      e.equipment,
+      e.assetId,
+      wl.set_number,
+      wl.weight,
+      wl.reps
+    FROM workout_logs wl
+    JOIN exercises e ON wl.exercise_id = e.id
+    WHERE wl.date_logged = ?
+    ORDER BY wl.exercise_id, wl.set_number`,
+    date
+  );
+}
+
+export type DayAggregateRow = {
+  date_logged: string;
+  exercise_count: number;
+  set_count: number;
+  avg_weight: number;
+  avg_reps: number;
+  body_parts: string;
+};
+
+export async function getMonthlyAggregates(
+  db: SQLiteDatabase,
+  startDate: string,
+  endDate: string
+): Promise<DayAggregateRow[]> {
+  return db.getAllAsync<DayAggregateRow>(
+    `SELECT
+      date_logged,
+      COUNT(DISTINCT exercise_id) as exercise_count,
+      COUNT(*) as set_count,
+      AVG(CAST(weight AS REAL)) as avg_weight,
+      AVG(CAST(reps AS REAL)) as avg_reps,
+      GROUP_CONCAT(DISTINCT body_part) as body_parts
+    FROM workout_logs
+    WHERE date_logged >= ? AND date_logged <= ?
+    GROUP BY date_logged
+    ORDER BY date_logged`,
+    startDate,
+    endDate
+  );
+}
