@@ -1,21 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 import { Tabs } from 'expo-router';
-import { Dumbbell, CalendarDays, Search, Clock, Settings, Menu, Moon, Sun } from 'lucide-react-native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { Dumbbell, CalendarDays, Search, Clock, Settings, Menu } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { DrawerMenu } from '@/components/navigation/drawer-menu';
 import { TabBar } from '@/components/navigation/tab-bar';
 import { useResponsive } from '@/lib/use-responsive';
 import { useTheme } from '@react-navigation/native';
-import { useUniwind, Uniwind } from 'uniwind';
+import { useAccentHex } from '@/lib/accent-store';
 
 export default function TabLayout() {
   const { isDesktop } = useResponsive();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { colors } = useTheme();
-  const { theme } = useUniwind();
-  const isDark = theme === 'dark';
+  const accentPrimary = useAccentHex();
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -29,6 +29,11 @@ export default function TabLayout() {
     return () => window.removeEventListener('popstate', handler);
   }, [drawerOpen]);
 
+  const renderTabBar = useCallback(
+    (props: BottomTabBarProps) => (!isDesktop ? <TabBar {...props} activeColor={accentPrimary} /> : null),
+    [isDesktop, accentPrimary]
+  );
+
   return (
     <Drawer
       open={drawerOpen}
@@ -40,30 +45,14 @@ export default function TabLayout() {
     >
       <Tabs
         initialRouteName="workout"
-        tabBar={(props) => (!isDesktop ? <TabBar {...props} /> : null)}
+        tabBar={renderTabBar}
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          headerStyle: {
-            backgroundColor: colors.card,
-          },
-          headerTintColor: colors.text,
           headerLeft: () => (
             <Pressable
               onPress={() => setDrawerOpen(true)}
               className="ml-4 p-2"
             >
               <Icon as={Menu} className="size-5 text-foreground" />
-            </Pressable>
-          ),
-          headerRight: () => (
-            <Pressable
-              onPress={() => Uniwind.setTheme(isDark ? 'light' : 'dark')}
-              className="mr-4 p-2 rounded-full active:bg-muted"
-            >
-              <Icon
-                as={isDark ? Sun : Moon}
-                className="size-5 text-foreground"
-              />
             </Pressable>
           ),
         }}

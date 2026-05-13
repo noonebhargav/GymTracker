@@ -11,9 +11,10 @@ const LABELS: Record<string, string> = {
   settings: 'Settings',
 };
 
-export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function TabBar({ state, descriptors, navigation, activeColor }: BottomTabBarProps & { activeColor?: string }) {
   const { colors } = useTheme();
   const { bottom } = useSafeAreaInsets();
+  const primary = activeColor ?? colors.primary;
 
   return (
     <View
@@ -28,7 +29,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
-        const color = isFocused ? colors.primary : colors.text;
+        const color = isFocused ? primary : colors.text;
         const label = LABELS[route.name] ?? options.title ?? route.name;
 
         function onPress() {
@@ -54,7 +55,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               paddingBottom: 8,
               minWidth: 0,
               borderTopWidth: 3,
-              borderTopColor: isFocused ? colors.primary : 'transparent',
+              borderTopColor: isFocused ? primary : 'transparent',
             }}
           >
             {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}

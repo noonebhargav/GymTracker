@@ -133,19 +133,16 @@ export default function HistoryDateDetail() {
               ))}
             </View>
           )}
-          <View className="flex-row justify-between">
+          <View className="gap-1">
             <Text className="text-sm text-muted-foreground">
-              {daySummary.exerciseCount}{' '}
-              {daySummary.exerciseCount === 1 ? 'exercise' : 'exercises'}
+              Exercises: {daySummary.exerciseCount}
+              {'  |  '}
+              Sets: {daySummary.setCount}
             </Text>
             <Text className="text-sm text-muted-foreground">
-              {daySummary.setCount} {daySummary.setCount === 1 ? 'set' : 'sets'}
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              Avg: {Math.round(daySummary.avgWeight)} lbs
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              Avg: {Math.round(daySummary.avgReps)} reps
+              Avg Weight: {Math.round(daySummary.avgWeight)} lbs
+              {'  |  '}
+              Avg Reps: {Math.round(daySummary.avgReps)}
             </Text>
           </View>
         </View>

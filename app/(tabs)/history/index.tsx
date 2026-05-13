@@ -403,19 +403,16 @@ export default function HistoryTab() {
                       ))}
                     </View>
                   )}
-                  <View className="flex-row justify-between">
+                  <View className="gap-1">
                     <Text className="text-sm text-muted-foreground">
-                      {week.exerciseCount}{' '}
-                      {week.exerciseCount === 1 ? 'exercise' : 'exercises'}
+                      Exercises: {week.exerciseCount}
+                      {'  |  '}
+                      Sets: {week.setCount}
                     </Text>
                     <Text className="text-sm text-muted-foreground">
-                      {week.setCount} {week.setCount === 1 ? 'set' : 'sets'}
-                    </Text>
-                    <Text className="text-sm text-muted-foreground">
-                      Avg: {Math.round(week.avgWeight)} lbs
-                    </Text>
-                    <Text className="text-sm text-muted-foreground">
-                      Avg: {Math.round(week.avgReps)} reps
+                      Avg Weight: {Math.round(week.avgWeight)} lbs
+                      {'  |  '}
+                      Avg Reps: {Math.round(week.avgReps)}
                     </Text>
                   </View>
                 </>

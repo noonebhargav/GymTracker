@@ -3,13 +3,22 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
 import { getSetting, setSetting } from '@/lib/database';
+import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
+import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
+import { Uniwind } from 'uniwind';
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Minus,
+  Plus,
+  Sun,
+  Moon,
+  SunMoon,
+  type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -39,6 +48,10 @@ function StepperRow({
   unit,
   showFast = true,
   onIncrement,
+  SlowDecrease = ChevronLeft,
+  SlowIncrease = ChevronRight,
+  FastDecrease = ChevronsLeft,
+  FastIncrease = ChevronsRight,
 }: {
   label: string;
   value: number;
@@ -49,6 +62,10 @@ function StepperRow({
   unit?: string;
   showFast?: boolean;
   onIncrement: (v: number) => void;
+  SlowDecrease?: LucideIcon;
+  SlowIncrease?: LucideIcon;
+  FastDecrease?: LucideIcon;
+  FastIncrease?: LucideIcon;
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(String(value));
@@ -77,7 +94,7 @@ function StepperRow({
             className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Decrease ${label} by ${fastStep}`}
           >
-              <Icon as={ChevronsLeft} className="size-4 text-muted-foreground" aria-hidden={true} />
+              <Icon as={FastDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
         <Pressable
@@ -88,7 +105,7 @@ function StepperRow({
           className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Decrease ${label} by ${step}`}
         >
-          <Icon as={ChevronLeft} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
         </Pressable>
 
         {editing ? (
@@ -118,7 +135,7 @@ function StepperRow({
           className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Increase ${label} by ${step}`}
         >
-          <Icon as={ChevronRight} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
         </Pressable>
         {showFast && (
           <Pressable
@@ -129,11 +146,53 @@ function StepperRow({
             className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Increase ${label} by ${fastStep}`}
           >
-            <Icon as={ChevronsRight} className="size-4 text-muted-foreground" aria-hidden={true} />
+            <Icon as={FastIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
       </View>
     </View>
+  );
+}
+
+function ThemeToggleRow({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const options = [
+    { key: 'light', icon: Sun, label: 'Light' },
+    { key: 'system', icon: SunMoon, label: 'System' },
+    { key: 'dark', icon: Moon, label: 'Dark' },
+  ];
+
+  const currentIndex = options.findIndex((o) => o.key === value);
+  const current = options[currentIndex === -1 ? 0 : currentIndex];
+
+  const cycle = () => {
+    const next = options[(currentIndex + 1) % options.length];
+    onChange(next.key);
+  };
+
+  return (
+    <Pressable
+      onPress={cycle}
+      className="flex-row items-center justify-between px-4 py-3 border-b border-border active:bg-muted/50"
+    >
+      <Text className="text-base text-foreground shrink min-w-0">Dark Mode</Text>
+      <View className="flex-row items-center gap-1.5 shrink-0">
+        <Icon as={current.icon} className="size-5 text-foreground" />
+        <Text className="text-sm text-muted-foreground min-w-[68px] text-right" numberOfLines={1}>
+          {current.label}
+        </Text>
+        <Icon
+          as={ChevronRight}
+          className="size-4 text-muted-foreground"
+          aria-hidden={true}
+        />
+      </View>
+    </Pressable>
   );
 }
 
@@ -161,6 +220,36 @@ function SwitchRow({
   );
 }
 
+function AccentRow({
+  selected,
+  onChange,
+}: {
+  selected: string;
+  onChange: (key: string) => void;
+}) {
+  return (
+    <View className="px-4 py-3 border-b border-border">
+      <Text className="text-base text-foreground mb-3">Accent</Text>
+      <View className="flex-row flex-wrap gap-3">
+        {ACCENT_COLORS.map((color) => {
+          const isSelected = selected === color.key;
+          return (
+            <Pressable
+              key={color.key}
+              onPress={() => onChange(color.key)}
+              className={`size-8 rounded-full ${
+                isSelected ? 'border-2 border-foreground' : 'border border-border'
+              }`}
+              style={{ backgroundColor: color.swatchHex }}
+              aria-label={`${color.name} accent${isSelected ? ' selected' : ''}`}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function SettingsTab() {
   const db = useSQLiteContext();
   const [defaultSets, setDefaultSets] = useState(3);
@@ -168,6 +257,8 @@ export default function SettingsTab() {
   const [defaultReps, setDefaultReps] = useState(10);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [queueEnabled, setQueueEnabled] = useState(true);
+  const [theme, setTheme] = useState<string>('system');
+  const [accentColor, setAccentColor] = useState<string>('neutral');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -180,12 +271,16 @@ export default function SettingsTab() {
         const reps = await getSetting(db, 'default_reps');
         const unit = await getSetting(db, 'weight_unit');
         const queue = await getSetting(db, 'queue_enabled');
+        const thm = await getSetting(db, 'theme');
+        const accent = await getSetting(db, 'accent_color');
 
         setDefaultSets(Number(sets ?? DEFAULTS.default_sets));
         setDefaultWeight(Number(weight ?? DEFAULTS.default_weight));
         setDefaultReps(Number(reps ?? DEFAULTS.default_reps));
         setWeightUnit((unit as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg'));
         setQueueEnabled((queue ?? DEFAULTS.queue_enabled) === 'true');
+        setTheme(thm ?? 'system');
+        setAccentColor(accent ?? 'neutral');
       } catch {
         setError(true);
       } finally {
@@ -240,6 +335,29 @@ export default function SettingsTab() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
     >
+      <SectionHeader title="General" />
+      <SwitchRow
+        leftLabel="Weight Unit"
+        rightLabel={weightUnit === 'kg' ? 'kg' : 'lbs'}
+        checked={isKg}
+        onToggle={(v) => {
+          const newUnit = v ? 'kg' : 'lbs';
+          const converted = convertWeight(defaultWeight, weightUnit, newUnit);
+          setWeightUnit(newUnit);
+          setDefaultWeight(converted);
+          persistStr('weight_unit', newUnit);
+          persistInt('default_weight', converted);
+        }}
+      />
+      <SwitchRow
+        leftLabel="Queue Mode"
+        checked={queueEnabled}
+        onToggle={(v) => {
+          setQueueEnabled(v);
+          persistStr('queue_enabled', String(v));
+        }}
+      />
+
       <SectionHeader title="Defaults" />
       <StepperRow
         label="Sets"
@@ -249,6 +367,8 @@ export default function SettingsTab() {
         step={1}
         fastStep={1}
         showFast={false}
+        SlowDecrease={Minus}
+        SlowIncrease={Plus}
         onIncrement={(v) => {
           setDefaultSets(v);
           persistInt('default_sets', v);
@@ -280,26 +400,30 @@ export default function SettingsTab() {
         }}
       />
 
-      <SectionHeader title="General" />
-      <SwitchRow
-        leftLabel="Weight Unit"
-        rightLabel={weightUnit === 'kg' ? 'kg' : 'lbs'}
-        checked={isKg}
-        onToggle={(v) => {
-          const newUnit = v ? 'kg' : 'lbs';
-          const converted = convertWeight(defaultWeight, weightUnit, newUnit);
-          setWeightUnit(newUnit);
-          setDefaultWeight(converted);
-          persistStr('weight_unit', newUnit);
-          persistInt('default_weight', converted);
+      <SectionHeader title="Appearance" />
+      <ThemeToggleRow
+        value={theme}
+        onChange={(v) => {
+          setTheme(v);
+          persistStr('theme', v);
+          const key = v as 'light' | 'dark' | 'system';
+          Uniwind.setTheme(key);
+          applyAccentColor(accentColor, (v === 'system' ? 'light' : v) as 'light' | 'dark');
         }}
       />
-      <SwitchRow
-        leftLabel="Queue Mode"
-        checked={queueEnabled}
-        onToggle={(v) => {
-          setQueueEnabled(v);
-          persistStr('queue_enabled', String(v));
+      <AccentRow
+        selected={accentColor}
+        onChange={(key) => {
+          setAccentColor(key);
+          persistStr('accent_color', key);
+          const effective = theme === 'system' ? 'light' : theme;
+          applyAccentColor(key, effective as 'light' | 'dark');
+          if (key && key !== 'neutral') {
+            const color = ACCENT_COLORS.find((c) => c.key === key);
+            setAccent(color ? (theme === 'dark' ? color.dark.primaryHex : color.light.primaryHex) : undefined);
+          } else {
+            setAccent(undefined);
+          }
         }}
       />
     </ScrollView>
