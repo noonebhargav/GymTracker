@@ -19,6 +19,8 @@ const DAYS = [
   { label: 'Sun', full: 'Sunday', index: 6 },
 ];
 
+const DAY_SCROLL_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 12, gap: 10 } as const;
+
 export default function RoutineTab() {
   const db = useSQLiteContext();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -105,7 +107,7 @@ export default function RoutineTab() {
         horizontal
         showsHorizontalScrollIndicator={false}
         className="border-b border-border"
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 12, gap: 10 }}
+        contentContainerStyle={DAY_SCROLL_CONTENT_STYLE}
       >
         {DAYS.map((day) => {
           const isSelected = selectedDay === day.index;

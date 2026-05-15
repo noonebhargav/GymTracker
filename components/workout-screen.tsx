@@ -23,12 +23,15 @@ import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Check,
   ChevronRight,
   Search,
   X,
 } from 'lucide-react-native';
+import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 
 const DEFAULTS: Record<string, string> = {
   default_sets: '3',
@@ -37,6 +40,10 @@ const DEFAULTS: Record<string, string> = {
   weight_unit: 'lbs',
   queue_enabled: 'true',
 };
+
+const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
+const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
+const HIT_SLOP_8 = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 function todayDateStr(): string {
   const d = new Date();
@@ -53,8 +60,69 @@ function mapJsDayToOur(jsDay: number): number {
   return (jsDay + 6) % 7;
 }
 
+const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
+  item,
+  isDone,
+  selectedTab,
+}: {
+  item: ExerciseRow;
+  isDone: boolean;
+  selectedTab: string;
+}) {
+  const g = toGoldStandardGroup(item.body_part, item.target);
+  const imageSource = getExerciseImage(item.assetId);
+  return (
+    <Pressable
+      onPress={() =>
+        router.push(
+          `/workout/${encodeURIComponent(selectedTab)}/${item.id}`
+        )
+      }
+      className="active:bg-muted"
+    >
+      <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
+        {imageSource ? (
+          <Image
+            source={imageSource}
+            className="size-12 rounded-md bg-muted"
+            resizeMode="cover"
+            accessibilityLabel={capitalizeWords(item.name)}
+          />
+        ) : (
+          <View className="size-12 rounded-md bg-muted items-center justify-center">
+            <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
+          </View>
+        )}
+        <View className="flex-1 min-w-0">
+          <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
+            {capitalizeWords(item.name)}
+          </Text>
+          <Text className="text-xs text-muted-foreground mt-0.5">
+            {capitalizeWords(item.equipment) || 'N/A'}
+            {g ? ` · ${g}` : ''}
+          </Text>
+        </View>
+        {isDone && (
+          <View className="flex-row items-center gap-1 bg-primary/20 border border-primary/40 rounded-full px-2.5 py-1">
+            <Icon as={Check} className="size-3 text-primary" aria-hidden={true} />
+            <Text className="text-xs font-semibold text-primary">Done</Text>
+          </View>
+        )}
+        <Icon
+          as={ChevronRight}
+          className="size-4 text-muted-foreground"
+          aria-hidden={true}
+        />
+      </View>
+    </Pressable>
+  );
+});
+
 export function WorkoutScreen({ tab }: { tab: string }) {
   const db = useSQLiteContext();
+  const { theme } = useUniwind();
+  const placeholderColor =
+    theme === 'dark' ? THEME.dark.mutedForeground : THEME.light.mutedForeground;
   const selectedTab = tab;
 
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
@@ -137,10 +205,9 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   useEffect(() => {
     if (!loaded || todayParts.length === 0) return;
     getRecentExercises(db, todayParts, 15).then((rows) => {
-      const ids = new Set(rows.map((r) => r.exercise_id));
-      setRecentExercises(exercises.filter((e) => ids.has(e.id)));
+      setRecentExercises(rows);
     });
-  }, [db, loaded, todayParts, exercises]);
+  }, [db, loaded, todayParts]);
 
   const goldMap = useMemo(() => {
     const map = new Map<string, ExerciseRow[]>();
@@ -193,6 +260,17 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     router.push(`/workout/${encodeURIComponent(tabKey)}`);
   }, []);
 
+  const renderExerciseRow = useCallback(
+    ({ item }: { item: ExerciseRow }) => (
+      <WorkoutExerciseRow
+        item={item}
+        isDone={completedToday.has(item.id)}
+        selectedTab={selectedTab}
+      />
+    ),
+    [completedToday, selectedTab]
+  );
+
   if (!loaded) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -210,7 +288,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           <TextInput
             className="flex-1 text-sm text-foreground"
             placeholder="Search exercises…"
-            placeholderTextColor="hsl(0 0% 45%)"
+            placeholderTextColor={placeholderColor}
             value={searchText}
             onChangeText={setSearchText}
             autoCapitalize="none"
@@ -223,6 +301,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
             <Pressable
               onPress={() => setSearchText('')}
               className="p-1"
+              hitSlop={HIT_SLOP_8}
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -232,12 +311,12 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       </View>
 
       {/* Horizontal filter tabs — below search */}
-      <View style={{ flexGrow: 0, flexShrink: 1 }}>
+      <View style={TAB_BAR_WRAPPER_STYLE}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           className="border-b border-border"
-          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}
+          contentContainerStyle={TAB_BAR_CONTENT_STYLE}
         >
           {tabs.map((t) => {
             const active = t.key === selectedTab;
@@ -286,56 +365,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           className="flex-1"
           data={filteredExercises}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const isDone = completedToday.has(item.id);
-            const g = toGoldStandardGroup(item.body_part, item.target);
-            const imageSource = getExerciseImage(item.assetId);
-
-            return (
-              <Pressable
-                onPress={() =>
-                  router.push(
-                    `/workout/${encodeURIComponent(selectedTab)}/${item.id}`
-                  )
-                }
-                className="active:bg-muted"
-              >
-                <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
-                  {imageSource ? (
-                    <Image
-                      source={imageSource}
-                      className="size-12 rounded-md bg-muted"
-                      resizeMode="cover"
-                      accessibilityLabel={capitalizeWords(item.name)}
-                    />
-                  ) : (
-                    <View className="size-12 rounded-md bg-muted items-center justify-center">
-                      <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
-                    </View>
-                  )}
-                  <View className="flex-1 min-w-0">
-                    <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-                      {capitalizeWords(item.name)}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground mt-0.5">
-                      {capitalizeWords(item.equipment) || 'N/A'}
-                      {g ? ` · ${g}` : ''}
-                    </Text>
-                  </View>
-                  {isDone && (
-                    <View className="bg-primary/15 rounded-full px-2.5 py-0.5">
-                      <Text className="text-xs font-semibold text-primary">Done</Text>
-                    </View>
-                  )}
-                  <Icon
-                    as={ChevronRight}
-                    className="size-4 text-muted-foreground"
-                    aria-hidden={true}
-                  />
-                </View>
-              </Pressable>
-            );
-          }}
+          renderItem={renderExerciseRow}
           keyboardShouldPersistTaps="handled"
         />
       )}

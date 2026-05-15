@@ -1,4 +1,4 @@
-import { View, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
@@ -179,6 +179,8 @@ function ThemeToggleRow({
     <Pressable
       onPress={cycle}
       className="flex-row items-center justify-between px-4 py-3 border-b border-border active:bg-muted/50"
+      accessibilityRole="button"
+      aria-label={`Dark Mode: ${current.label}. Tap to change.`}
     >
       <Text className="text-base text-foreground shrink min-w-0">Dark Mode</Text>
       <View className="flex-row items-center gap-1.5 shrink-0">
@@ -198,18 +200,25 @@ function ThemeToggleRow({
 
 function SwitchRow({
   leftLabel,
+  subtitle,
   rightLabel,
   checked,
   onToggle,
 }: {
   leftLabel: string;
+  subtitle?: string;
   rightLabel?: string;
   checked: boolean;
   onToggle: (v: boolean) => void;
 }) {
   return (
     <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-      <Text className="text-base text-foreground flex-1">{leftLabel}</Text>
+      <View className="flex-1 mr-2">
+        <Text className="text-base text-foreground">{leftLabel}</Text>
+        {subtitle && (
+          <Text className="text-xs text-muted-foreground mt-0.5">{subtitle}</Text>
+        )}
+      </View>
       {rightLabel && (
         <Text className="text-sm text-muted-foreground mr-2 min-w-[36px] text-right" numberOfLines={1}>
           {rightLabel}
@@ -305,20 +314,17 @@ export default function SettingsTab() {
     [db]
   );
 
-  const convertWeight = useCallback(
-    (value: number, from: 'lbs' | 'kg', to: 'lbs' | 'kg') => {
-      if (from === to) return value;
-      if (to === 'kg') return Math.round((value / 2.20462) * 2) / 2;
-      return Math.round((value * 2.20462) / 5) * 5;
-    },
-    []
-  );
-
   const isKg = weightUnit === 'kg';
   const wtFast = isKg ? 7.5 : 15;
   const wtSlow = isKg ? 2.5 : 5;
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   if (error) {
     return (
@@ -342,15 +348,16 @@ export default function SettingsTab() {
         checked={isKg}
         onToggle={(v) => {
           const newUnit = v ? 'kg' : 'lbs';
-          const converted = convertWeight(defaultWeight, weightUnit, newUnit);
+          const newDefault = v ? 10 : 20;
           setWeightUnit(newUnit);
-          setDefaultWeight(converted);
+          setDefaultWeight(newDefault);
           persistStr('weight_unit', newUnit);
-          persistInt('default_weight', converted);
+          persistInt('default_weight', newDefault);
         }}
       />
       <SwitchRow
         leftLabel="Queue Mode"
+        subtitle="Carry today's missed body parts forward one day"
         checked={queueEnabled}
         onToggle={(v) => {
           setQueueEnabled(v);

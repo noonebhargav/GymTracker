@@ -24,7 +24,9 @@ import {
 } from 'lucide-react-native';
 import { capitalizeWords } from '@/lib/utils';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 import {
   FlatList,
   Image,
@@ -34,6 +36,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+
+const HIT_SLOP_8 = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 function CollapsibleSection({
   title,
@@ -76,7 +80,7 @@ function CollapsibleSection({
   );
 }
 
-function CategoryGrid({
+const CategoryGrid = memo(function CategoryGrid({
   items,
   columns = 2,
 }: {
@@ -106,19 +110,21 @@ function CategoryGrid({
       ))}
     </View>
   );
-}
+});
 
-function ExerciseListItem({
+const ExerciseListItem = memo(function ExerciseListItem({
   item,
-  onPress,
 }: {
   item: ExerciseRow;
-  onPress: () => void;
 }) {
   const imageSource = getExerciseImage(item.assetId);
+  const handlePress = () => {
+    const g = toGoldStandardGroup(item.body_part, item.target);
+    router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
+  };
 
   return (
-    <Pressable onPress={onPress} className="active:bg-muted">
+    <Pressable onPress={handlePress} className="active:bg-muted">
       <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
         {imageSource ? (
           <Image
@@ -144,10 +150,13 @@ function ExerciseListItem({
       </View>
     </Pressable>
   );
-}
+});
 
 export default function ExploreIndex() {
   const db = useSQLiteContext();
+  const { theme } = useUniwind();
+  const placeholderColor =
+    theme === 'dark' ? THEME.dark.mutedForeground : THEME.light.mutedForeground;
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [bodyPartsOpen, setBodyPartsOpen] = useState(true);
@@ -202,6 +211,11 @@ export default function ExploreIndex() {
     );
   }, [exercises, searchText, showSearch]);
 
+  const renderSearchResult = useCallback(
+    ({ item }: { item: ExerciseRow }) => <ExerciseListItem item={item} />,
+    []
+  );
+
   return (
     <View className="flex-1 bg-background">
       <View className="px-4 pt-2 pb-2">
@@ -210,7 +224,7 @@ export default function ExploreIndex() {
           <TextInput
             className="flex-1 text-sm text-foreground"
             placeholder="Search exercises…"
-            placeholderTextColor="hsl(0 0% 45%)"
+            placeholderTextColor={placeholderColor}
             value={searchText}
             onChangeText={setSearchText}
             autoCapitalize="none"
@@ -223,6 +237,7 @@ export default function ExploreIndex() {
             <Pressable
               onPress={() => setSearchText('')}
               className="p-1"
+              hitSlop={HIT_SLOP_8}
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -237,6 +252,7 @@ export default function ExploreIndex() {
             <Pressable
               onPress={() => setSearchText('')}
               className="p-1 mr-2"
+              hitSlop={HIT_SLOP_8}
               aria-label="Back to explore"
             >
               <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
@@ -256,15 +272,7 @@ export default function ExploreIndex() {
             <FlatList
               data={searchResults}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ExerciseListItem
-                  item={item}
-                  onPress={() => {
-                    const g = toGoldStandardGroup(item.body_part, item.target);
-                    router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
-                  }}
-                />
-              )}
+              renderItem={renderSearchResult}
               keyboardShouldPersistTaps="handled"
             />
           )}

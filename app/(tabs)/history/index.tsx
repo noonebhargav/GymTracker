@@ -49,7 +49,7 @@ function getMondayOfWeek(ds: string): string {
   const d = new Date(ds + 'T00:00:00');
   const day = d.getDay();
   d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function formatWeekRange(mondayStr: string): string {
@@ -158,7 +158,9 @@ export default function HistoryTab() {
     const mondays: string[] = [];
     const cursor = new Date(firstMonday);
     while (cursor <= lastDay) {
-      mondays.push(cursor.toISOString().slice(0, 10));
+      mondays.push(
+        `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(cursor.getDate())}`
+      );
       cursor.setDate(cursor.getDate() + 7);
     }
 
@@ -231,9 +233,12 @@ export default function HistoryTab() {
   if (!dateRange) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-8">
-        <Icon as={Clock} className="size-12 text-muted-foreground mb-4" />
-        <Text className="text-base text-muted-foreground text-center">
+        <Icon as={Clock} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
+        <Text className="text-base font-medium text-foreground text-center mb-1">
           No workouts logged yet
+        </Text>
+        <Text className="text-sm text-muted-foreground text-center">
+          Head over to the Workout tab to log your first exercise.
         </Text>
       </View>
     );
@@ -417,7 +422,7 @@ export default function HistoryTab() {
                   </View>
                 </>
               ) : (
-                <Text className="text-sm text-muted-foreground/50">No workouts</Text>
+                <Text className="text-sm text-muted-foreground">No exercises logged this week</Text>
               )}
             </View>
           ))}

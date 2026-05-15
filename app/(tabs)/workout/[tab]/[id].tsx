@@ -1,12 +1,13 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Pressable,
   ScrollView,
   TextInput,
   Image,
+  Keyboard,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
@@ -15,7 +16,7 @@ import {
   getSetting,
   getWorkoutSetsForDate,
   getLastWorkoutSets,
-  insertWorkoutSets,
+  replaceWorkoutSets,
   deleteWorkoutSets,
   getWorkoutLogsForToday,
   type ExerciseDetail,
@@ -75,7 +76,10 @@ export default function ExerciseSetEditor() {
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);
 
-  const isDirty = JSON.stringify(setValues) !== JSON.stringify(initialSetValues);
+  const isDirty = useMemo(
+    () => JSON.stringify(setValues) !== JSON.stringify(initialSetValues),
+    [setValues, initialSetValues]
+  );
 
   useEffect(() => {
     if (!exerciseId) return;
@@ -150,7 +154,11 @@ export default function ExerciseSetEditor() {
 
   const markAsDone = useCallback(async () => {
     if (!exercise) return;
-    const g = toGoldStandardGroup(exercise.body_part, exercise.target) ?? '';
+    const g = toGoldStandardGroup(exercise.body_part, exercise.target);
+    if (!g) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      return;
+    }
     const inputs: WorkoutSetInput[] = setValues.map((s, i) => ({
       exercise_id: exercise.id,
       set_number: i + 1,
@@ -159,10 +167,13 @@ export default function ExerciseSetEditor() {
       date_logged: today,
       body_part: g,
     }));
-    await deleteWorkoutSets(db, today, exercise.id);
-    await insertWorkoutSets(db, inputs);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    router.back();
+    try {
+      await replaceWorkoutSets(db, today, exercise.id, inputs);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      router.back();
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    }
   }, [db, setValues, today, exercise]);
 
   const removeFromDone = useCallback(async () => {
@@ -195,8 +206,13 @@ export default function ExerciseSetEditor() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-2 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1 mr-2">
-          <Icon as={ArrowLeft} className="size-5 text-foreground" />
+        <Pressable
+          onPress={() => router.back()}
+          className="p-1 mr-2"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          aria-label="Back"
+        >
+          <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
         </Pressable>
         <Text className="text-lg font-semibold text-foreground flex-1" numberOfLines={1}>
           {capitalizeWords(exercise.name)}
@@ -268,6 +284,8 @@ export default function ExerciseSetEditor() {
                     if (!isNaN(v)) updateSetValue(idx, 'weight', v);
                   }}
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
                   selectTextOnFocus
                 />
                 <Pressable
@@ -310,6 +328,8 @@ export default function ExerciseSetEditor() {
                     if (!isNaN(v)) updateSetValue(idx, 'reps', v);
                   }}
                   keyboardType="number-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
                   selectTextOnFocus
                 />
                 <Pressable

@@ -236,24 +236,20 @@ export async function getLoggedBodyPartsForDate(
   return rows.map((r) => r.body_part);
 }
 
-export type RecentExerciseRow = {
-  exercise_id: string;
-  last_date: string;
-};
-
 export async function getRecentExercises(
   db: SQLiteDatabase,
   bodyParts: string[],
   limit = 20
-): Promise<RecentExerciseRow[]> {
+): Promise<ExerciseRow[]> {
   if (bodyParts.length === 0) return [];
   const placeholders = bodyParts.map(() => '?').join(', ');
-  return db.getAllAsync<RecentExerciseRow>(
-    `SELECT exercise_id, MAX(date_logged) as last_date
-     FROM workout_logs
-     WHERE body_part IN (${placeholders})
-     GROUP BY exercise_id
-     ORDER BY last_date DESC
+  return db.getAllAsync<ExerciseRow>(
+    `SELECT e.id, e.name, e.body_part, e.target, e.muscle_group, e.equipment, e.assetId
+     FROM workout_logs wl
+     JOIN exercises e ON wl.exercise_id = e.id
+     WHERE wl.body_part IN (${placeholders})
+     GROUP BY wl.exercise_id
+     ORDER BY MAX(wl.date_logged) DESC
      LIMIT ?`,
     ...bodyParts,
     limit
@@ -292,12 +288,30 @@ export type WorkoutSetInput = {
   body_part: string;
 };
 
-export async function insertWorkoutSets(
+export async function deleteWorkoutSets(
   db: SQLiteDatabase,
+  date: string,
+  exerciseId: string
+): Promise<void> {
+  await db.runAsync(
+    'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
+    date,
+    exerciseId
+  );
+}
+
+export async function replaceWorkoutSets(
+  db: SQLiteDatabase,
+  date: string,
+  exerciseId: string,
   sets: WorkoutSetInput[]
 ): Promise<void> {
-  if (sets.length === 0) return;
   await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
+      date,
+      exerciseId
+    );
     for (const s of sets) {
       await db.runAsync(
         `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
@@ -311,18 +325,6 @@ export async function insertWorkoutSets(
       );
     }
   });
-}
-
-export async function deleteWorkoutSets(
-  db: SQLiteDatabase,
-  date: string,
-  exerciseId: string
-): Promise<void> {
-  await db.runAsync(
-    'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
-    date,
-    exerciseId
-  );
 }
 
 export async function getWorkoutLogsForToday(
