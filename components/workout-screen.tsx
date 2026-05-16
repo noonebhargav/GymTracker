@@ -203,7 +203,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [db, loaded, queueEnabled]);
 
   useEffect(() => {
-    if (!loaded || todayParts.length === 0) return;
+    if (!loaded) return;
+    if (todayParts.length === 0) {
+      setRecentExercises([]);
+      return;
+    }
     getRecentExercises(db, todayParts, 15).then((rows) => {
       setRecentExercises(rows);
     });

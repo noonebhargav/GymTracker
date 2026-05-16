@@ -1,20 +1,8 @@
 import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { getSetting, setSetting } from '@/lib/database';
+import { getSetting, setSetting, resetAllData } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -27,17 +15,28 @@ import {
   ChevronsRight,
   Minus,
   Plus,
-  RotateCcw,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const DEFAULTS: Record<string, string> = {
   default_sets: '3',
   default_weight: '20',
   default_reps: '10',
   weight_unit: 'lbs',
-  queue_enabled: 'true',
+  queue_enabled: 'false',
 };
 
 function SectionHeader({ title }: { title: string }) {
@@ -164,22 +163,20 @@ function StepperRow({
   );
 }
 
-function ThemeSegmentedControl({
+function SegmentedControl({
+  label,
+  options,
   value,
   onChange,
 }: {
+  label: string;
+  options: { key: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
 }) {
-  const options = [
-    { key: 'light', label: 'Light' },
-    { key: 'system', label: 'System' },
-    { key: 'dark', label: 'Dark' },
-  ];
-
   return (
     <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-      <Text className="text-base text-foreground shrink min-w-0">Dark Mode</Text>
+      <Text className="text-base text-foreground shrink min-w-0">{label}</Text>
       <View className="flex-row rounded-lg bg-muted border border-border overflow-hidden shrink-0">
         {options.map((opt, i) => {
           const active = value === opt.key;
@@ -192,7 +189,7 @@ function ThemeSegmentedControl({
               } ${active ? 'bg-primary' : 'active:bg-muted/80'}`}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              aria-label={`${opt.label} mode`}
+              aria-label={opt.label}
             >
               <Text
                 className={`text-sm font-medium ${
@@ -205,37 +202,6 @@ function ThemeSegmentedControl({
           );
         })}
       </View>
-    </View>
-  );
-}
-
-function SwitchRow({
-  leftLabel,
-  subtitle,
-  rightLabel,
-  checked,
-  onToggle,
-}: {
-  leftLabel: string;
-  subtitle?: string;
-  rightLabel?: string;
-  checked: boolean;
-  onToggle: (v: boolean) => void;
-}) {
-  return (
-    <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-      <View className="flex-1 mr-2">
-        <Text className="text-base text-foreground">{leftLabel}</Text>
-        {subtitle && (
-          <Text className="text-xs text-muted-foreground mt-0.5">{subtitle}</Text>
-        )}
-      </View>
-      {rightLabel && (
-        <Text className="text-sm text-muted-foreground mr-2 min-w-[36px] text-right" numberOfLines={1}>
-          {rightLabel}
-        </Text>
-      )}
-      <Switch checked={checked} onCheckedChange={onToggle} />
     </View>
   );
 }
@@ -276,11 +242,13 @@ export default function SettingsTab() {
   const [defaultWeight, setDefaultWeight] = useState(20);
   const [defaultReps, setDefaultReps] = useState(10);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
-  const [queueEnabled, setQueueEnabled] = useState(true);
+  const [queueEnabled, setQueueEnabled] = useState(false);
   const [theme, setTheme] = useState<string>('system');
   const [accentColor, setAccentColor] = useState<string>('neutral');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     let timeout = setTimeout(() => setError(true), 5000);
@@ -325,22 +293,25 @@ export default function SettingsTab() {
     [db]
   );
 
-  const resetAllData = useCallback(async () => {
-    await db.withTransactionAsync(async () => {
-      await db.runAsync('DELETE FROM settings');
-      await db.runAsync('DELETE FROM workout_logs');
-      await db.runAsync('DELETE FROM routines');
-    });
-    setDefaultSets(Number(DEFAULTS.default_sets));
-    setDefaultWeight(Number(DEFAULTS.default_weight));
-    setDefaultReps(Number(DEFAULTS.default_reps));
-    setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
-    setQueueEnabled(DEFAULTS.queue_enabled === 'true');
-    setTheme('system');
-    setAccentColor('neutral');
-    Uniwind.setTheme('system');
-    applyAccentColor('neutral', 'light');
-    setAccent(undefined);
+  const handleReset = useCallback(async () => {
+    setResetting(true);
+    try {
+      await resetAllData(db);
+      setDefaultSets(Number(DEFAULTS.default_sets));
+      setDefaultWeight(Number(DEFAULTS.default_weight));
+      setDefaultReps(Number(DEFAULTS.default_reps));
+      setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
+      setQueueEnabled(false);
+      setTheme('system');
+      setAccentColor('neutral');
+      Uniwind.setTheme('system');
+      setAccent(undefined);
+      InteractionManager.runAfterInteractions(() => {
+        applyAccentColor('neutral', Uniwind.currentTheme as 'light' | 'dark');
+      });
+    } finally {
+      setResetting(false);
+    }
   }, [db]);
 
   const isKg = weightUnit === 'kg';
@@ -371,26 +342,33 @@ export default function SettingsTab() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <SectionHeader title="General" />
-      <SwitchRow
-        leftLabel="Weight Unit"
-        rightLabel={weightUnit === 'kg' ? 'kg' : 'lbs'}
-        checked={isKg}
-        onToggle={(v) => {
-          const newUnit = v ? 'kg' : 'lbs';
-          const newDefault = v ? 10 : 20;
+      <SegmentedControl
+        label="Units"
+        options={[
+          { key: 'lbs', label: 'Lbs' },
+          { key: 'kg', label: 'Kg' },
+        ]}
+        value={weightUnit}
+        onChange={(v) => {
+          const newUnit = v as 'lbs' | 'kg';
+          const newDefault = v === 'kg' ? 10 : 20;
           setWeightUnit(newUnit);
           setDefaultWeight(newDefault);
           persistStr('weight_unit', newUnit);
           persistInt('default_weight', newDefault);
         }}
       />
-      <SwitchRow
-        leftLabel="Queue Mode"
-        subtitle="Carry today's missed body parts forward one day"
-        checked={queueEnabled}
-        onToggle={(v) => {
-          setQueueEnabled(v);
-          persistStr('queue_enabled', String(v));
+      <SegmentedControl
+        label="Mode"
+        options={[
+          { key: 'false', label: 'Skip' },
+          { key: 'true', label: 'Queue' },
+        ]}
+        value={String(queueEnabled)}
+        onChange={(v) => {
+          const enabled = v === 'true';
+          setQueueEnabled(enabled);
+          persistStr('queue_enabled', v);
         }}
       />
 
@@ -437,7 +415,13 @@ export default function SettingsTab() {
       />
 
       <SectionHeader title="Appearance" />
-      <ThemeSegmentedControl
+      <SegmentedControl
+        label="Theme"
+        options={[
+          { key: 'light', label: 'Light' },
+          { key: 'system', label: 'System' },
+          { key: 'dark', label: 'Dark' },
+        ]}
         value={theme}
         onChange={(v) => {
           setTheme(v);
@@ -468,38 +452,34 @@ export default function SettingsTab() {
         }}
       />
 
-      <SectionHeader title="Data" />
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="destructive"
-            className="mx-4 mt-2"
-            accessibilityLabel="Reset all data"
-          >
-            <Icon as={RotateCcw} className="size-4 text-white" aria-hidden={true} />
-            <Text className="text-white font-medium">Reset All Data</Text>
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset All Data?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete all settings, routines, and workout history. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <Text>Cancel</Text>
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onPress={resetAllData}
-              className="bg-destructive active:bg-destructive/90 dark:bg-destructive/60"
-            >
-              <Text className="text-white">Delete Everything</Text>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SectionHeader title="Danger Zone" />
+      <View className="px-4 py-4">
+        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="w-full" disabled={resetting}>
+              <Icon as={TriangleAlert} className="size-4 text-white" />
+              <Text>Reset All Data</Text>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset All Data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete all your workout history, weekly routines, and settings. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                <Text>Cancel</Text>
+              </AlertDialogCancel>
+              <AlertDialogAction onPress={handleReset}>
+                <Text>Reset</Text>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </View>
+
     </ScrollView>
   );
 }

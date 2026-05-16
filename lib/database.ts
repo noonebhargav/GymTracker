@@ -225,6 +225,36 @@ export async function setSetting(
   );
 }
 
+export async function resetAllData(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM workout_logs');
+    await db.execAsync('DELETE FROM routines');
+    await db.execAsync('DELETE FROM settings');
+
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('seeded', '1')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_sets', '3')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_weight', '20')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_reps', '10')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('weight_unit', 'lbs')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('queue_enabled', 'false')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('theme', 'system')"
+    );
+  });
+}
+
 export async function getLoggedBodyPartsForDate(
   db: SQLiteDatabase,
   date: string
