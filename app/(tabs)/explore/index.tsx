@@ -220,7 +220,7 @@ export default function ExploreIndex() {
     <View className="flex-1 bg-background">
       <View className="px-4 pt-2 pb-2">
         <View className="flex-row items-center bg-muted rounded-lg px-3 h-10">
-          <Icon as={Search} className="size-4 text-muted-foreground mr-2" aria-hidden={true} />
+          <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
           <TextInput
             className="flex-1 text-sm text-foreground"
             placeholder="Search exercises…"

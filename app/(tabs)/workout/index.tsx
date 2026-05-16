@@ -1,5 +1,5 @@
-import { WorkoutScreen } from '@/components/workout-screen';
+import { Redirect } from 'expo-router';
 
 export default function WorkoutRecent() {
-  return <WorkoutScreen tab="recent" />;
+  return <Redirect href="/(tabs)/workout/recent" />;
 }

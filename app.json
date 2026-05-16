@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "minimal",
-    "slug": "minimal",
+    "name": "GymTracker",
+    "slug": "gymtracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "minimal",
+    "scheme": "gymtracker",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
@@ -17,13 +17,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.minimal"
+      "bundleIdentifier": "com.gymtracker.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.gymtracker.app"
     },
     "web": {
       "bundler": "metro",

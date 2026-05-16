@@ -1,7 +1,19 @@
-import { View, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { getSetting, setSetting } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
@@ -15,9 +27,7 @@ import {
   ChevronsRight,
   Minus,
   Plus,
-  Sun,
-  Moon,
-  SunMoon,
+  RotateCcw,
   type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -154,7 +164,7 @@ function StepperRow({
   );
 }
 
-function ThemeToggleRow({
+function ThemeSegmentedControl({
   value,
   onChange,
 }: {
@@ -162,39 +172,40 @@ function ThemeToggleRow({
   onChange: (v: string) => void;
 }) {
   const options = [
-    { key: 'light', icon: Sun, label: 'Light' },
-    { key: 'system', icon: SunMoon, label: 'System' },
-    { key: 'dark', icon: Moon, label: 'Dark' },
+    { key: 'light', label: 'Light' },
+    { key: 'system', label: 'System' },
+    { key: 'dark', label: 'Dark' },
   ];
 
-  const currentIndex = options.findIndex((o) => o.key === value);
-  const current = options[currentIndex === -1 ? 0 : currentIndex];
-
-  const cycle = () => {
-    const next = options[(currentIndex + 1) % options.length];
-    onChange(next.key);
-  };
-
   return (
-    <Pressable
-      onPress={cycle}
-      className="flex-row items-center justify-between px-4 py-3 border-b border-border active:bg-muted/50"
-      accessibilityRole="button"
-      aria-label={`Dark Mode: ${current.label}. Tap to change.`}
-    >
+    <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
       <Text className="text-base text-foreground shrink min-w-0">Dark Mode</Text>
-      <View className="flex-row items-center gap-1.5 shrink-0">
-        <Icon as={current.icon} className="size-5 text-foreground" />
-        <Text className="text-sm text-muted-foreground min-w-[68px] text-right" numberOfLines={1}>
-          {current.label}
-        </Text>
-        <Icon
-          as={ChevronRight}
-          className="size-4 text-muted-foreground"
-          aria-hidden={true}
-        />
+      <View className="flex-row rounded-lg bg-muted border border-border overflow-hidden shrink-0">
+        {options.map((opt, i) => {
+          const active = value === opt.key;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => onChange(opt.key)}
+              className={`px-3.5 h-8 items-center justify-center ${
+                i > 0 ? 'border-l border-border' : ''
+              } ${active ? 'bg-primary' : 'active:bg-muted/80'}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              aria-label={`${opt.label} mode`}
+            >
+              <Text
+                className={`text-sm font-medium ${
+                  active ? 'text-primary-foreground' : 'text-foreground'
+                }`}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -314,6 +325,24 @@ export default function SettingsTab() {
     [db]
   );
 
+  const resetAllData = useCallback(async () => {
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM settings');
+      await db.runAsync('DELETE FROM workout_logs');
+      await db.runAsync('DELETE FROM routines');
+    });
+    setDefaultSets(Number(DEFAULTS.default_sets));
+    setDefaultWeight(Number(DEFAULTS.default_weight));
+    setDefaultReps(Number(DEFAULTS.default_reps));
+    setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
+    setQueueEnabled(DEFAULTS.queue_enabled === 'true');
+    setTheme('system');
+    setAccentColor('neutral');
+    Uniwind.setTheme('system');
+    applyAccentColor('neutral', 'light');
+    setAccent(undefined);
+  }, [db]);
+
   const isKg = weightUnit === 'kg';
   const wtFast = isKg ? 7.5 : 15;
   const wtSlow = isKg ? 2.5 : 5;
@@ -408,14 +437,19 @@ export default function SettingsTab() {
       />
 
       <SectionHeader title="Appearance" />
-      <ThemeToggleRow
+      <ThemeSegmentedControl
         value={theme}
         onChange={(v) => {
           setTheme(v);
           persistStr('theme', v);
           const key = v as 'light' | 'dark' | 'system';
           Uniwind.setTheme(key);
-          applyAccentColor(accentColor, (v === 'system' ? 'light' : v) as 'light' | 'dark');
+          InteractionManager.runAfterInteractions(() => {
+            const effective = key === 'system'
+              ? (Uniwind.currentTheme as 'light' | 'dark')
+              : key;
+            applyAccentColor(accentColor, effective);
+          });
         }}
       />
       <AccentRow
@@ -433,6 +467,39 @@ export default function SettingsTab() {
           }
         }}
       />
+
+      <SectionHeader title="Data" />
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="destructive"
+            className="mx-4 mt-2"
+            accessibilityLabel="Reset all data"
+          >
+            <Icon as={RotateCcw} className="size-4 text-white" aria-hidden={true} />
+            <Text className="text-white font-medium">Reset All Data</Text>
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset All Data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all settings, routines, and workout history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>Cancel</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onPress={resetAllData}
+              className="bg-destructive active:bg-destructive/90 dark:bg-destructive/60"
+            >
+              <Text className="text-white">Delete Everything</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ScrollView>
   );
 }
