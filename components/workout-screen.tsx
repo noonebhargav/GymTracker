@@ -225,10 +225,12 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [exercises]);
 
   const baseFiltered = useMemo(() => {
-    if (selectedTab === 'recent') return recentExercises;
-    if (selectedTab === 'all') {
+    let result: ExerciseRow[];
+    if (selectedTab === 'recent') {
+      result = recentExercises;
+    } else if (selectedTab === 'all') {
       const ids = new Set<string>();
-      const result: ExerciseRow[] = [];
+      result = [];
       for (const part of todayParts) {
         for (const ex of goldMap.get(part) ?? []) {
           if (!ids.has(ex.id)) {
@@ -237,10 +239,17 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           }
         }
       }
-      return result;
+    } else {
+      result = goldMap.get(selectedTab) ?? [];
     }
-    return goldMap.get(selectedTab) ?? [];
-  }, [selectedTab, recentExercises, todayParts, goldMap]);
+    return [...result].sort((a, b) => {
+      const aDone = completedToday.has(a.id);
+      const bDone = completedToday.has(b.id);
+      if (aDone && !bDone) return -1;
+      if (!aDone && bDone) return 1;
+      return 0;
+    });
+  }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
 
   const filteredExercises = useMemo(() => {
     if (!searchText) return baseFiltered;

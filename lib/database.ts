@@ -279,7 +279,7 @@ export async function getRecentExercises(
      JOIN exercises e ON wl.exercise_id = e.id
      WHERE wl.body_part IN (${placeholders})
      GROUP BY wl.exercise_id
-     ORDER BY MAX(wl.date_logged) DESC
+      ORDER BY MAX(wl.date_logged) DESC, MAX(wl.created_at) DESC
      LIMIT ?`,
     ...bodyParts,
     limit
