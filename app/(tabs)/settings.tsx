@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { getSetting, setSetting, resetAllData } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
+import { forceReset } from '@/lib/reset-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 import { Uniwind } from 'uniwind';
@@ -119,7 +120,7 @@ function StepperRow({
 
         {editing ? (
           <TextInput
-            className="bg-muted border border-primary rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground min-w-16"
+            className="bg-muted border border-primary rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground min-w-16 max-w-24"
             value={text}
             onChangeText={setText}
             onBlur={commit}
@@ -297,18 +298,7 @@ export default function SettingsTab() {
     setResetting(true);
     try {
       await resetAllData(db);
-      setDefaultSets(Number(DEFAULTS.default_sets));
-      setDefaultWeight(Number(DEFAULTS.default_weight));
-      setDefaultReps(Number(DEFAULTS.default_reps));
-      setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
-      setQueueEnabled(false);
-      setTheme('system');
-      setAccentColor('neutral');
-      Uniwind.setTheme('system');
-      setAccent(undefined);
-      InteractionManager.runAfterInteractions(() => {
-        applyAccentColor('neutral', Uniwind.currentTheme as 'light' | 'dark');
-      });
+      forceReset();
     } finally {
       setResetting(false);
     }
