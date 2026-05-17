@@ -19,6 +19,8 @@ import {
   replaceWorkoutSets,
   deleteWorkoutSets,
   getWorkoutLogsForToday,
+  displayWeight,
+  toKg,
   type ExerciseDetail,
   type WorkoutSetInput,
 } from '@/lib/database';
@@ -71,7 +73,7 @@ export default function ExerciseSetEditor() {
 
   const today = todayDateStr();
   const isKg = weightUnit === 'kg';
-  const wtFast = isKg ? 10 : 20;
+  const wtFast = isKg ? 5 : 10;
   const wtSlow = isKg ? 2.5 : 5;
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);
@@ -99,19 +101,23 @@ export default function ExerciseSetEditor() {
       setExercise(ex);
 
       const dsNum = Number(ds ?? DEFAULTS.default_sets);
-      const dwNum = Number(dw ?? DEFAULTS.default_weight);
+      const dwKg = Number(dw ?? DEFAULTS.default_weight);
       const drNum = Number(dr ?? DEFAULTS.default_reps);
+      const resolvedUnit = (wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
       setDefaultSets(dsNum);
-      setDefaultWeight(dwNum);
+      setDefaultWeight(displayWeight(dwKg, resolvedUnit));
       setDefaultReps(drNum);
-      setWeightUnit((wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg'));
+      setWeightUnit(resolvedUnit);
 
       const done = new Set(todayLogs.map((r) => r.exercise_id)).has(exerciseId);
       setIsDone(done);
 
       if (done) {
         getWorkoutSetsForDate(db, today, exerciseId).then((todaySets) => {
-          const sets: SetValues[] = todaySets.map((s) => ({ weight: s.weight, reps: s.reps }));
+          const sets: SetValues[] = todaySets.map((s) => ({
+            weight: displayWeight(s.weight, resolvedUnit),
+            reps: s.reps,
+          }));
           setSetValues(sets.length ? sets : []);
           setInitialSetValues([...sets]);
           setLoaded(true);
@@ -121,11 +127,17 @@ export default function ExerciseSetEditor() {
           const sets: SetValues[] = [];
           for (let i = 0; i < dsNum; i++) {
             if (i < lastSets.length) {
-              sets.push({ weight: lastSets[i].weight, reps: lastSets[i].reps });
+              sets.push({
+                weight: displayWeight(lastSets[i].weight, resolvedUnit),
+                reps: lastSets[i].reps,
+              });
             } else if (lastSets.length > 0) {
-              sets.push({ weight: lastSets[lastSets.length - 1].weight, reps: lastSets[lastSets.length - 1].reps });
+              sets.push({
+                weight: displayWeight(lastSets[lastSets.length - 1].weight, resolvedUnit),
+                reps: lastSets[lastSets.length - 1].reps,
+              });
             } else {
-              sets.push({ weight: dwNum, reps: drNum });
+              sets.push({ weight: displayWeight(dwKg, resolvedUnit), reps: drNum });
             }
           }
           setSetValues(sets);
@@ -162,7 +174,7 @@ export default function ExerciseSetEditor() {
     const inputs: WorkoutSetInput[] = setValues.map((s, i) => ({
       exercise_id: exercise.id,
       set_number: i + 1,
-      weight: s.weight,
+      weight: toKg(s.weight, weightUnit),
       reps: s.reps,
       date_logged: today,
       body_part: g,
@@ -174,7 +186,7 @@ export default function ExerciseSetEditor() {
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }
-  }, [db, setValues, today, exercise]);
+  }, [db, setValues, today, exercise, weightUnit]);
 
   const removeFromDone = useCallback(async () => {
     if (!exercise) return;

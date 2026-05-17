@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { getDayWorkoutDetail, type DayWorkoutDetailRow } from '@/lib/database';
+import { getDayWorkoutDetail, getSetting, displayWeight, type DayWorkoutDetailRow } from '@/lib/database';
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { ArrowLeft, Search } from 'lucide-react-native';
@@ -34,11 +34,16 @@ export default function HistoryDateDetail() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const [detail, setDetail] = useState<DayWorkoutDetailRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
 
   useEffect(() => {
     if (!date) return;
-    getDayWorkoutDetail(db, date).then((rows) => {
+    Promise.all([
+      getDayWorkoutDetail(db, date),
+      getSetting(db, 'weight_unit'),
+    ]).then(([rows, wu]) => {
       setDetail(rows);
+      setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       setLoaded(true);
     });
   }, [db, date]);
@@ -140,7 +145,7 @@ export default function HistoryDateDetail() {
               Sets: {daySummary.setCount}
             </Text>
             <Text className="text-sm text-muted-foreground">
-              Avg Weight: {Math.round(daySummary.avgWeight)} lbs
+              Avg Weight: {Math.round(displayWeight(daySummary.avgWeight, weightUnit))} {weightUnit}
               {'  |  '}
               Avg Reps: {Math.round(daySummary.avgReps)}
             </Text>
@@ -186,7 +191,7 @@ export default function HistoryDateDetail() {
                       {s.setNumber}
                     </Text>
                     <Text className="text-sm text-foreground tabular-nums">
-                      {s.weight} lbs
+                      {displayWeight(s.weight, weightUnit)} {weightUnit}
                     </Text>
                     <Text className="text-sm text-muted-foreground">×</Text>
                     <Text className="text-sm text-foreground tabular-nums">

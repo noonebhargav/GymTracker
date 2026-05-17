@@ -1,6 +1,18 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import seedData from '@/lib/seed_data.json';
 
+const LBS_FACTOR = 2.205;
+
+export function displayWeight(kg: number, unit: 'lbs' | 'kg'): number {
+  if (unit === 'kg') return Math.round(kg / 2.5) * 2.5;
+  return Math.round((kg * LBS_FACTOR) / 5) * 5;
+}
+
+export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
+  if (fromUnit === 'kg') return Math.round(value / 2.5) * 2.5;
+  return Math.round((value / LBS_FACTOR) / 2.5) * 2.5;
+}
+
 type ExerciseSeed = {
   id: string;
   name: string;

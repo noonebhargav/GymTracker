@@ -5,6 +5,8 @@ import {
   getWorkoutDates,
   getWorkoutDateRange,
   getMonthlyAggregates,
+  getSetting,
+  displayWeight,
   type DayAggregateRow,
 } from '@/lib/database';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -95,15 +97,17 @@ export default function HistoryTab() {
   } | null>(null);
   const [aggregates, setAggregates] = useState<DayAggregateRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
 
   const loadMonthData = useCallback(
     async (year: number, month: number) => {
       const start = dateStr(year, month, 1);
       const end = dateStr(year, month, daysInMonth(year, month));
-      const [dates, range, aggs] = await Promise.all([
+      const [dates, range, aggs, wu] = await Promise.all([
         getWorkoutDates(db),
         getWorkoutDateRange(db),
         getMonthlyAggregates(db, start, end),
+        getSetting(db, 'weight_unit'),
       ]);
       setWorkoutDates(new Set(dates.map((r) => r.date_logged)));
       if (range?.first_date) {
@@ -112,6 +116,7 @@ export default function HistoryTab() {
         setDateRange(null);
       }
       setAggregates(aggs);
+      setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       setLoaded(true);
     },
     [db]
@@ -415,7 +420,7 @@ export default function HistoryTab() {
                       Sets: {week.setCount}
                     </Text>
                     <Text className="text-sm text-muted-foreground">
-                      Avg Weight: {Math.round(week.avgWeight)} lbs
+                      Avg Weight: {Math.round(displayWeight(week.avgWeight, weightUnit))} {weightUnit}
                       {'  |  '}
                       Avg Reps: {Math.round(week.avgReps)}
                     </Text>

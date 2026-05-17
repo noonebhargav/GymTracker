@@ -2,7 +2,7 @@ import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionM
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
-import { getSetting, setSetting, resetAllData } from '@/lib/database';
+import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -263,10 +263,13 @@ export default function SettingsTab() {
         const thm = await getSetting(db, 'theme');
         const accent = await getSetting(db, 'accent_color');
 
+        const resolvedUnit = (unit as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
+        const weightKg = Number(weight ?? DEFAULTS.default_weight);
+
         setDefaultSets(Number(sets ?? DEFAULTS.default_sets));
-        setDefaultWeight(Number(weight ?? DEFAULTS.default_weight));
+        setDefaultWeight(displayWeight(weightKg, resolvedUnit));
         setDefaultReps(Number(reps ?? DEFAULTS.default_reps));
-        setWeightUnit((unit as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg'));
+        setWeightUnit(resolvedUnit);
         setQueueEnabled((queue ?? DEFAULTS.queue_enabled) === 'true');
         setTheme(thm ?? 'system');
         setAccentColor(accent ?? 'neutral');
@@ -299,10 +302,13 @@ export default function SettingsTab() {
     try {
       await resetAllData(db);
 
+      const kg = Number(DEFAULTS.default_weight);
+      const unit = DEFAULTS.weight_unit as 'lbs' | 'kg';
+
       setDefaultSets(Number(DEFAULTS.default_sets));
-      setDefaultWeight(Number(DEFAULTS.default_weight));
+      setDefaultWeight(displayWeight(kg, unit));
       setDefaultReps(Number(DEFAULTS.default_reps));
-      setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
+      setWeightUnit(unit);
       setQueueEnabled(false);
       setTheme('system');
       setAccentColor('neutral');
@@ -318,7 +324,7 @@ export default function SettingsTab() {
   }, [db]);
 
   const isKg = weightUnit === 'kg';
-  const wtFast = isKg ? 7.5 : 15;
+  const wtFast = isKg ? 5 : 10;
   const wtSlow = isKg ? 2.5 : 5;
 
   if (loading) {
@@ -354,11 +360,12 @@ export default function SettingsTab() {
         value={weightUnit}
         onChange={(v) => {
           const newUnit = v as 'lbs' | 'kg';
-          const newDefault = v === 'kg' ? 10 : 20;
+          const kg = toKg(defaultWeight, weightUnit);
+          const newDisplay = displayWeight(kg, newUnit);
           setWeightUnit(newUnit);
-          setDefaultWeight(newDefault);
+          setDefaultWeight(newDisplay);
           persistStr('weight_unit', newUnit);
-          persistInt('default_weight', newDefault);
+          persistInt('default_weight', toKg(newDisplay, newUnit));
         }}
       />
       <SegmentedControl
@@ -401,7 +408,7 @@ export default function SettingsTab() {
         unit={weightUnit}
         onIncrement={(v) => {
           setDefaultWeight(v);
-          persistInt('default_weight', v);
+          persistInt('default_weight', toKg(v, weightUnit));
         }}
       />
       <StepperRow
