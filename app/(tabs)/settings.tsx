@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { getSetting, setSetting, resetAllData } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
-import { forceReset } from '@/lib/reset-store';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useUniwind } from 'uniwind';
 import { useCallback, useEffect, useState } from 'react';
 import { Uniwind } from 'uniwind';
 import {
@@ -298,9 +298,22 @@ export default function SettingsTab() {
     setResetting(true);
     try {
       await resetAllData(db);
-      forceReset();
+
+      setDefaultSets(Number(DEFAULTS.default_sets));
+      setDefaultWeight(Number(DEFAULTS.default_weight));
+      setDefaultReps(Number(DEFAULTS.default_reps));
+      setWeightUnit(DEFAULTS.weight_unit as 'lbs' | 'kg');
+      setQueueEnabled(false);
+      setTheme('system');
+      setAccentColor('neutral');
+
+      const effective = (Uniwind.currentTheme ?? 'light') as 'light' | 'dark';
+      applyAccentColor('neutral', effective);
+      setAccent(undefined);
+      Uniwind.setTheme('system');
     } finally {
       setResetting(false);
+      setResetDialogOpen(false);
     }
   }, [db]);
 
@@ -458,13 +471,23 @@ export default function SettingsTab() {
                 This will permanently delete all your workout history, weekly routines, and settings. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {resetting && (
+              <View className="items-center py-4">
+                <ActivityIndicator />
+                <Text className="text-sm text-muted-foreground mt-3">Resetting data...</Text>
+              </View>
+            )}
             <AlertDialogFooter>
-              <AlertDialogCancel>
+              <AlertDialogCancel disabled={resetting}>
                 <Text>Cancel</Text>
               </AlertDialogCancel>
-              <AlertDialogAction onPress={handleReset}>
-                <Text>Reset</Text>
-              </AlertDialogAction>
+              <Button variant="destructive" size="sm" onPress={handleReset} disabled={resetting}>
+                {resetting ? (
+                  <Text>Resetting...</Text>
+                ) : (
+                  <Text>Reset</Text>
+                )}
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

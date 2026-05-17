@@ -232,7 +232,7 @@ export async function resetAllData(db: SQLiteDatabase): Promise<void> {
     await db.execAsync('DELETE FROM settings');
 
     await db.runAsync(
-      "INSERT INTO settings (key, value) VALUES ('seeded', '1')"
+      "INSERT INTO settings (key, value) VALUES ('seeded', 'true')"
     );
     await db.runAsync(
       "INSERT INTO settings (key, value) VALUES ('default_sets', '3')"
@@ -251,6 +251,9 @@ export async function resetAllData(db: SQLiteDatabase): Promise<void> {
     );
     await db.runAsync(
       "INSERT INTO settings (key, value) VALUES ('theme', 'system')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('accent_color', 'neutral')"
     );
   });
 }

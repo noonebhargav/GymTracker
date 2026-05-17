@@ -4,7 +4,6 @@ import { initAndSeedDatabase, getSetting } from '@/lib/database';
 import { NAV_THEME } from '@/lib/theme';
 import { applyAccentColor, ACCENT_COLORS } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
-import { useResetKey } from '@/lib/reset-store';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack } from 'expo-router';
@@ -46,7 +45,6 @@ function AccentLoader() {
 export default function RootLayout() {
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
-  const resetKey = useResetKey();
 
   useEffect(() => {
     StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
@@ -54,7 +52,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={NAV_THEME[theme ?? 'light']}>
-      <SQLiteProvider key={resetKey} databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
+      <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
         <AccentLoader />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
