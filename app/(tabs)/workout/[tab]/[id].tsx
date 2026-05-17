@@ -21,6 +21,7 @@ import {
   getWorkoutLogsForToday,
   displayWeight,
   toKg,
+  setSetting,
   type ExerciseDetail,
   type WorkoutSetInput,
 } from '@/lib/database';
@@ -28,6 +29,7 @@ import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import * as Haptics from 'expo-haptics';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -70,6 +72,8 @@ export default function ExerciseSetEditor() {
   const [setValues, setSetValues] = useState<SetValues[]>([]);
   const [initialSetValues, setInitialSetValues] = useState<SetValues[]>([]);
   const [isDone, setIsDone] = useState(false);
+  const [weightFocusedIdx, setWeightFocusedIdx] = useState<number | null>(null);
+  const [repsFocusedIdx, setRepsFocusedIdx] = useState<number | null>(null);
 
   const today = todayDateStr();
   const isKg = weightUnit === 'kg';
@@ -205,6 +209,23 @@ export default function ExerciseSetEditor() {
     setSetValues((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const handleUnitChange = useCallback(
+    (v: string) => {
+      const newUnit = v as 'lbs' | 'kg';
+      if (newUnit === weightUnit) return;
+      setSetValues((prev) =>
+        prev.map((s) => ({
+          ...s,
+          weight: displayWeight(toKg(s.weight, weightUnit), newUnit),
+        }))
+      );
+      setDefaultWeight((prev) => displayWeight(toKg(prev, weightUnit), newUnit));
+      setWeightUnit(newUnit);
+      setSetting(db, 'weight_unit', newUnit).catch(() => {});
+    },
+    [db, weightUnit]
+  );
+
   if (!loaded) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
@@ -254,6 +275,16 @@ export default function ExerciseSetEditor() {
           </View>
         </Pressable>
 
+        <SegmentedControl
+          label="Units"
+          options={[
+            { key: 'lbs', label: 'Lbs' },
+            { key: 'kg', label: 'Kg' },
+          ]}
+          value={weightUnit}
+          onChange={handleUnitChange}
+        />
+
         <View className="px-4 pt-4">
           {setValues.map((s, idx) => (
             <View key={idx} className="mb-4">
@@ -290,7 +321,13 @@ export default function ExerciseSetEditor() {
                 <TextInput
                   className="bg-transparent border border-border rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground tabular-nums"
                   style={{ minWidth: 80 }}
-                  value={`${s.weight} ${isKg ? 'kg' : 'lbs'}`}
+                  value={
+                    weightFocusedIdx === idx
+                      ? String(s.weight)
+                      : `${s.weight} ${isKg ? 'kg' : 'lbs'}`
+                  }
+                  onFocus={() => setWeightFocusedIdx(idx)}
+                  onBlur={() => setWeightFocusedIdx(null)}
                   onChangeText={(t) => {
                     const v = parseFloat(t);
                     if (!isNaN(v)) updateSetValue(idx, 'weight', v);
@@ -334,7 +371,9 @@ export default function ExerciseSetEditor() {
                 <TextInput
                   className="bg-transparent border border-border rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground tabular-nums"
                   style={{ minWidth: 80 }}
-                  value={`${s.reps} reps`}
+                  value={repsFocusedIdx === idx ? String(s.reps) : `${s.reps} reps`}
+                  onFocus={() => setRepsFocusedIdx(idx)}
+                  onBlur={() => setRepsFocusedIdx(null)}
                   onChangeText={(t) => {
                     const v = parseInt(t, 10);
                     if (!isNaN(v)) updateSetValue(idx, 'reps', v);
