@@ -7,7 +7,6 @@ import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useUniwind } from 'uniwind';
 import { useCallback, useEffect, useState } from 'react';
 import { Uniwind } from 'uniwind';
 import {
@@ -280,6 +279,7 @@ export default function SettingsTab() {
       setResetDialogOpen(false);
     } catch {
       Alert.alert('Error', 'Could not reset data. Please try again.');
+      setResetDialogOpen(false);
     } finally {
       setResetting(false);
     }
@@ -413,8 +413,12 @@ export default function SettingsTab() {
         onChange={(key) => {
           setAccentColor(key);
           persistStr('accent_color', key);
-          const effective = theme === 'system' ? 'light' : theme;
-          applyAccentColor(key, effective as 'light' | 'dark');
+          InteractionManager.runAfterInteractions(() => {
+            const effective = (theme === 'system'
+              ? Uniwind.currentTheme
+              : theme) as 'light' | 'dark';
+            applyAccentColor(key, effective);
+          });
           if (key && key !== 'neutral') {
             const color = ACCENT_COLORS.find((c) => c.key === key);
             setAccent(color ? (theme === 'dark' ? color.dark.primaryHex : color.light.primaryHex) : undefined);
