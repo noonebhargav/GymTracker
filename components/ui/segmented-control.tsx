@@ -22,7 +22,7 @@ export function SegmentedControl({
             <Pressable
               key={opt.key}
               onPress={() => onChange(opt.key)}
-              className={`px-3.5 h-8 items-center justify-center ${
+              className={`px-3.5 h-10 items-center justify-center ${
                 i > 0 ? 'border-l border-border' : ''
               } ${active ? 'bg-primary' : 'active:bg-muted/80'}`}
               accessibilityRole="button"

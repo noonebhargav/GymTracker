@@ -160,7 +160,7 @@ export default function RoutineTab() {
                 <Pressable
                   key={group}
                   onPress={() => toggleBodyPart(selectedDay, group)}
-                  className="w-1/2 p-1"
+                  className="w-1/2 p-2"
                   aria-label={`Toggle ${group}`}
                   accessibilityState={{ selected: state === 'selected' }}
                   accessibilityRole="switch"

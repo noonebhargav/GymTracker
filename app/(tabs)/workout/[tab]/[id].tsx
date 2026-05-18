@@ -21,7 +21,6 @@ import {
   getWorkoutLogsForToday,
   displayWeight,
   toKg,
-  setSetting,
   type ExerciseDetail,
   type WorkoutSetInput,
 } from '@/lib/database';
@@ -29,7 +28,6 @@ import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import * as Haptics from 'expo-haptics';
-import { SegmentedControl } from '@/components/ui/segmented-control';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -209,23 +207,6 @@ export default function ExerciseSetEditor() {
     setSetValues((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const handleUnitChange = useCallback(
-    (v: string) => {
-      const newUnit = v as 'lbs' | 'kg';
-      if (newUnit === weightUnit) return;
-      setSetValues((prev) =>
-        prev.map((s) => ({
-          ...s,
-          weight: displayWeight(toKg(s.weight, weightUnit), newUnit),
-        }))
-      );
-      setDefaultWeight((prev) => displayWeight(toKg(prev, weightUnit), newUnit));
-      setWeightUnit(newUnit);
-      setSetting(db, 'weight_unit', newUnit).catch(() => {});
-    },
-    [db, weightUnit]
-  );
-
   if (!loaded) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
@@ -241,8 +222,7 @@ export default function ExerciseSetEditor() {
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable
           onPress={() => router.back()}
-          className="p-1 mr-2"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="p-3"
           aria-label="Back"
         >
           <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
@@ -275,16 +255,6 @@ export default function ExerciseSetEditor() {
           </View>
         </Pressable>
 
-        <SegmentedControl
-          label="Units"
-          options={[
-            { key: 'lbs', label: 'Lbs' },
-            { key: 'kg', label: 'Kg' },
-          ]}
-          value={weightUnit}
-          onChange={handleUnitChange}
-        />
-
         <View className="px-4 pt-4">
           {setValues.map((s, idx) => (
             <View key={idx} className="mb-4">
@@ -295,10 +265,10 @@ export default function ExerciseSetEditor() {
                 {setValues.length > 1 && (
                   <Pressable
                     onPress={() => removeSet(idx)}
-                    className="size-7 items-center justify-center rounded-full active:bg-destructive/10"
+                    className="size-11 items-center justify-center rounded-full active:bg-destructive/10"
                     aria-label={`Remove set ${idx + 1}`}
                   >
-                    <Icon as={MinusCircle} className="size-4 text-destructive" />
+                    <Icon as={MinusCircle} className="size-5 text-destructive" />
                   </Pressable>
                 )}
               </View>
@@ -306,20 +276,20 @@ export default function ExerciseSetEditor() {
               <View className="flex-row items-center justify-center gap-1.5 mb-2">
                 <Pressable
                   onPress={() => updateSetValue(idx, 'weight', Math.max(0, s.weight - wtFast))}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Decrease weight fast"
                 >
-                  <Icon as={ChevronsLeft} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronsLeft} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <Pressable
                   onPress={() => updateSetValue(idx, 'weight', s.weight - wtSlow)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Decrease weight"
                 >
-                  <Icon as={ChevronLeft} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronLeft} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <TextInput
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground tabular-nums"
+                  className="bg-transparent border border-border rounded-md px-3 py-3 text-center text-base font-semibold text-foreground tabular-nums"
                   style={{ minWidth: 80 }}
                   value={
                     weightFocusedIdx === idx
@@ -339,37 +309,37 @@ export default function ExerciseSetEditor() {
                 />
                 <Pressable
                   onPress={() => updateSetValue(idx, 'weight', s.weight + wtSlow)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Increase weight"
                 >
-                  <Icon as={ChevronRight} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronRight} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <Pressable
                   onPress={() => updateSetValue(idx, 'weight', s.weight + wtFast)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Increase weight fast"
                 >
-                  <Icon as={ChevronsRight} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronsRight} className="size-5 text-muted-foreground" />
                 </Pressable>
               </View>
 
               <View className="flex-row items-center justify-center gap-1.5">
                 <Pressable
                   onPress={() => updateSetValue(idx, 'reps', Math.max(0, s.reps - 5))}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Decrease reps fast"
                 >
-                  <Icon as={ChevronsLeft} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronsLeft} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <Pressable
                   onPress={() => updateSetValue(idx, 'reps', s.reps - 1)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Decrease reps"
                 >
-                  <Icon as={ChevronLeft} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronLeft} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <TextInput
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground tabular-nums"
+                  className="bg-transparent border border-border rounded-md px-3 py-3 text-center text-base font-semibold text-foreground tabular-nums"
                   style={{ minWidth: 80 }}
                   value={repsFocusedIdx === idx ? String(s.reps) : `${s.reps} reps`}
                   onFocus={() => setRepsFocusedIdx(idx)}
@@ -385,17 +355,17 @@ export default function ExerciseSetEditor() {
                 />
                 <Pressable
                   onPress={() => updateSetValue(idx, 'reps', s.reps + 1)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Increase reps"
                 >
-                  <Icon as={ChevronRight} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronRight} className="size-5 text-muted-foreground" />
                 </Pressable>
                 <Pressable
                   onPress={() => updateSetValue(idx, 'reps', s.reps + 5)}
-                  className="size-9 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
                   aria-label="Increase reps fast"
                 >
-                  <Icon as={ChevronsRight} className="size-4 text-muted-foreground" />
+                  <Icon as={ChevronsRight} className="size-5 text-muted-foreground" />
                 </Pressable>
               </View>
             </View>
@@ -405,7 +375,7 @@ export default function ExerciseSetEditor() {
         <View className="px-4 pb-4 mt-1">
           <Pressable
             onPress={addSet}
-            className="py-2.5 rounded-lg border border-dashed border-border items-center active:bg-muted"
+            className="py-3 rounded-lg border border-dashed border-border items-center active:bg-muted"
           >
             <View className="flex-row items-center gap-1.5">
               <Icon as={Plus} className="size-4 text-muted-foreground" />

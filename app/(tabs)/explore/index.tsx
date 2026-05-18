@@ -37,8 +37,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-const HIT_SLOP_8 = { top: 8, bottom: 8, left: 8, right: 8 } as const;
-
 function CollapsibleSection({
   title,
   open,
@@ -236,8 +234,7 @@ export default function ExploreIndex() {
           {searchText.length > 0 && (
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-1"
-              hitSlop={HIT_SLOP_8}
+              className="p-3"
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -251,8 +248,7 @@ export default function ExploreIndex() {
           <View className="flex-row items-center px-4 py-2 border-b border-border">
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-1 mr-2"
-              hitSlop={HIT_SLOP_8}
+              className="p-3 mr-2"
               aria-label="Back to explore"
             >
               <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />

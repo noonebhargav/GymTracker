@@ -43,7 +43,6 @@ const DEFAULTS: Record<string, string> = {
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
-const HIT_SLOP_8 = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 function todayDateStr(): string {
   const d = new Date();
@@ -313,8 +312,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           {searchText.length > 0 && (
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-1"
-              hitSlop={HIT_SLOP_8}
+              className="p-3"
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -337,7 +335,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
               <Pressable
                 key={t.key}
                 onPress={() => navigateToTab(t.key)}
-                className={`h-9 px-3 items-center justify-center rounded-full ${
+                className={`h-10 px-3 items-center justify-center rounded-full ${
                   active
                     ? 'bg-primary border border-primary'
                     : 'bg-muted border border-border active:bg-muted/80'

@@ -35,7 +35,7 @@ export default function ExerciseDetailPage() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-2 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1 mr-2">
+        <Pressable onPress={() => router.back()} className="p-3 mr-2">
           <Icon as={ArrowLeft} className="size-5 text-foreground" />
         </Pressable>
         <Text className="text-lg font-semibold text-foreground flex-1" numberOfLines={1}>

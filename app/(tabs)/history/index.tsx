@@ -255,7 +255,7 @@ export default function HistoryTab() {
       <View className="flex-row mx-4 mt-3 bg-muted rounded-lg p-0.5">
         <Pressable
           onPress={() => setMode('calendar')}
-          className={`flex-1 h-9 rounded-md items-center justify-center ${
+          className={`flex-1 h-10 rounded-md items-center justify-center ${
             mode === 'calendar' ? 'bg-background shadow-sm' : ''
           }`}
         >
@@ -269,7 +269,7 @@ export default function HistoryTab() {
         </Pressable>
         <Pressable
           onPress={() => setMode('summary')}
-          className={`flex-1 h-9 rounded-md items-center justify-center ${
+          className={`flex-1 h-10 rounded-md items-center justify-center ${
             mode === 'summary' ? 'bg-background shadow-sm' : ''
           }`}
         >
@@ -288,7 +288,7 @@ export default function HistoryTab() {
         <Pressable
           onPress={goToPrevMonth}
           disabled={!canGoPrev}
-          className="p-2"
+          className="p-3"
           aria-label="Previous month"
         >
           <Icon
@@ -302,7 +302,7 @@ export default function HistoryTab() {
         <Pressable
           onPress={goToNextMonth}
           disabled={!canGoNext}
-          className="p-2"
+          className="p-3"
           aria-label="Next month"
         >
           <Icon
@@ -351,7 +351,7 @@ export default function HistoryTab() {
                     aria-label={`${day} ${hasWorkout ? 'has workouts' : ''}`}
                   >
                     <View
-                      className={`size-9 items-center justify-center rounded-full ${
+                      className={`size-10 items-center justify-center rounded-full ${
                         today ? 'bg-primary' : ''
                       }`}
                     >

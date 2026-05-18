@@ -100,10 +100,10 @@ function StepperRow({
               onIncrement(Math.max(min, value - fastStep));
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }}
-            className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+            className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Decrease ${label} by ${fastStep}`}
           >
-              <Icon as={FastDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+              <Icon as={FastDecrease} className="size-5 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
         <Pressable
@@ -111,15 +111,15 @@ function StepperRow({
             onIncrement(Math.max(min, value - step));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           }}
-          className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+          className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Decrease ${label} by ${step}`}
         >
-          <Icon as={SlowDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowDecrease} className="size-5 text-muted-foreground" aria-hidden={true} />
         </Pressable>
 
         {editing ? (
           <TextInput
-            className="bg-muted border border-primary rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground min-w-16 max-w-24"
+            className="bg-muted border border-primary rounded-md px-3 py-3 text-center text-base font-semibold text-foreground min-w-16 max-w-24"
             value={text}
             onChangeText={setText}
             onBlur={commit}
@@ -141,10 +141,10 @@ function StepperRow({
             onIncrement(Math.min(max, value + step));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           }}
-          className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+          className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Increase ${label} by ${step}`}
         >
-          <Icon as={SlowIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowIncrease} className="size-5 text-muted-foreground" aria-hidden={true} />
         </Pressable>
         {showFast && (
           <Pressable
@@ -152,10 +152,10 @@ function StepperRow({
               onIncrement(Math.min(max, value + fastStep));
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }}
-            className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+            className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Increase ${label} by ${fastStep}`}
           >
-            <Icon as={FastIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+            <Icon as={FastIncrease} className="size-5 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
       </View>
@@ -180,7 +180,7 @@ function AccentRow({
             <Pressable
               key={color.key}
               onPress={() => onChange(color.key)}
-              className={`size-8 rounded-full ${
+              className={`size-10 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
               style={{ backgroundColor: color.swatchHex }}

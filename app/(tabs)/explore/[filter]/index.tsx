@@ -87,7 +87,7 @@ export default function FilterPage() {
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable
           onPress={() => router.back()}
-          className="p-1 mr-2"
+          className="p-3 mr-2"
           aria-label="Back"
         >
           <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
