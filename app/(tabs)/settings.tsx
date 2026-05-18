@@ -1,4 +1,4 @@
-import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,6 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 
@@ -271,13 +270,18 @@ export default function SettingsTab() {
       setTheme('system');
       setAccentColor('neutral');
 
-      const effective = (Uniwind.currentTheme ?? 'light') as 'light' | 'dark';
-      applyAccentColor('neutral', effective);
-      setAccent(undefined);
       Uniwind.setTheme('system');
+      InteractionManager.runAfterInteractions(() => {
+        const effective = (Uniwind.currentTheme ?? 'light') as 'light' | 'dark';
+        applyAccentColor('neutral', effective);
+        setAccent(undefined);
+      });
+
+      setResetDialogOpen(false);
+    } catch {
+      Alert.alert('Error', 'Could not reset data. Please try again.');
     } finally {
       setResetting(false);
-      setResetDialogOpen(false);
     }
   }, [db]);
 
