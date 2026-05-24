@@ -1,6 +1,6 @@
 # Phase 15: Settings Tab Restructure
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 

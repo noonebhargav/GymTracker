@@ -1,8 +1,18 @@
 import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
 import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
@@ -21,16 +31,6 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
 
 const DEFAULTS: Record<string, string> = {
   default_sets: '3',
@@ -427,10 +427,15 @@ export default function SettingsTab() {
       <View className="px-4 py-4">
         <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full" disabled={resetting}>
-              <Icon as={TriangleAlert} className="size-4 text-white" />
-              <Text>Reset All Data</Text>
-            </Button>
+            <Pressable
+              className="w-full h-[52px] rounded-[14px] bg-danger-soft border border-danger/20 items-center justify-center active:opacity-80"
+              aria-label="Reset all data"
+            >
+              <View className="flex-row items-center gap-2">
+                <Icon as={TriangleAlert} className="size-4 text-destructive" />
+                <Text className="text-base font-bold text-destructive">Reset all data</Text>
+              </View>
+            </Pressable>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -450,11 +455,7 @@ export default function SettingsTab() {
                 <Text>Cancel</Text>
               </AlertDialogCancel>
               <Button variant="destructive" size="sm" onPress={handleReset} disabled={resetting}>
-                {resetting ? (
-                  <Text>Resetting...</Text>
-                ) : (
-                  <Text>Reset</Text>
-                )}
+                {resetting ? <Text>Resetting...</Text> : <Text>Reset</Text>}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
