@@ -15,6 +15,7 @@ import {
   type WindowPRRow,
 } from '@/lib/database';
 import { GOLD_STANDARD_GROUPS, toGoldStandardGroup } from '@/lib/exercise-groups';
+import { capitalizeWords } from '@/lib/utils';
 
 const PRIMARY_COLOR = '#d8fe3d';
 
@@ -165,13 +166,13 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
         {/* Bars */}
         <View className="flex-row items-end gap-1" style={{ height: 100 }}>
           {weekAvgs.map((avg, i) => {
-            const isLast = i === 9;
-            const barHeight = avg > 0 ? Math.max(4, (avg / chartMax) * 96) : 4;
+            const hasData = avg > 0;
+            const barHeight = hasData ? Math.max(4, (avg / chartMax) * 96) : 4;
             return (
               <View key={i} className="flex-1 items-center justify-end" style={{ height: 100 }}>
                 <View
                   style={{ height: barHeight, borderRadius: 3 }}
-                  className={`w-full ${isLast ? 'bg-primary' : 'bg-secondary'}`}
+                  className={`w-full ${hasData ? 'bg-primary' : 'bg-secondary'}`}
                 />
               </View>
             );
@@ -267,7 +268,7 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                    {pr.exercise_name}
+                    {capitalizeWords(pr.exercise_name)}
                   </Text>
                   <Text className="text-xs text-muted-foreground">
                     {formatShortDate(pr.best_date)}

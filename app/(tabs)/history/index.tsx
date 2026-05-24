@@ -21,6 +21,19 @@ function todayStr(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function getMondayOfWeek(ds: string): string {
+  const d = new Date(ds + 'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function addWeeks(dateStr: string, weeks: number): string {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + weeks * 7);
@@ -84,9 +97,23 @@ export default function HistoryTab() {
     );
   }, [currentYear, currentMonth]);
 
+  const canGoPrevWindow = useMemo(() => {
+    if (!dateRange?.first) return false;
+    return dateRange.first < addDays(windowEndDate, -69);
+  }, [windowEndDate, dateRange]);
+
   const canGoNextWindow = useMemo(() => {
     return windowEndDate < todayStr();
   }, [windowEndDate]);
+
+  // Snap: when there are fewer than 10 weeks of data, place the first logged
+  // week at W1 so data fills from the left with no empty bars on the left side.
+  useEffect(() => {
+    if (!dateRange?.first) return;
+    if (dateRange.first >= addDays(todayStr(), -69)) {
+      setWindowEndDate(addDays(getMondayOfWeek(dateRange.first), 69));
+    }
+  }, [dateRange?.first]);
 
   const goToPrevMonth = useCallback(() => {
     if (currentMonth === 0) {
@@ -165,8 +192,16 @@ export default function HistoryTab() {
       {/* Navigator */}
       {mode === 'insights' ? (
         <View className="flex-row items-center justify-between px-4 py-2">
-          <Pressable onPress={goToPrevWindow} className="p-3" aria-label="Previous window">
-            <Icon as={ChevronLeft} className="size-5 text-foreground" />
+          <Pressable
+            onPress={goToPrevWindow}
+            disabled={!canGoPrevWindow}
+            className="p-3"
+            aria-label="Previous window"
+          >
+            <Icon
+              as={ChevronLeft}
+              className={`size-5 ${canGoPrevWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
+            />
           </Pressable>
           <Text className="text-sm font-semibold text-foreground">
             {formatWindowLabel(windowEndDate)}
