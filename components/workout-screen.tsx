@@ -15,6 +15,7 @@ import {
   getLoggedBodyPartsForDate,
   getRecentExercises,
   getWorkoutLogsForToday,
+  getWorkoutStreak,
   type ExerciseRow,
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
@@ -24,6 +25,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Flame,
   Search,
   X,
 } from 'lucide-react-native';
@@ -57,6 +59,18 @@ function mapJsDayToOur(jsDay: number): number {
 }
 
 
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function SessionPill({ label }: { label: string }) {
+  return (
+    <View className="bg-primary rounded-full px-2.5 py-1">
+      <Text className="text-[11px] font-semibold text-primary-foreground" numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export function WorkoutScreen({ tab }: { tab: string }) {
   const db = useSQLiteContext();
   const { theme } = useUniwind();
@@ -72,6 +86,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const [queueEnabled, setQueueEnabled] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const [streak, setStreak] = useState(0);
 
   const today = todayDateStr();
   const todayIndex = mapJsDayToOur(new Date().getDay());
@@ -107,9 +122,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         getSetting(db, 'queue_enabled'),
         getWorkoutLogsForToday(db, today),
         getAllRoutines(db),
-      ]).then(([qe, todayLogs, routs]) => {
+        getWorkoutStreak(db),
+      ]).then(([qe, todayLogs, routs, s]) => {
         setQueueEnabled((qe ?? DEFAULTS.queue_enabled) === 'true');
         setCompletedToday(new Set(todayLogs.map((r) => r.exercise_id)));
+        setStreak(s);
         const map = new Map<number, Set<string>>();
         for (const r of routs) {
           if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
@@ -239,7 +256,23 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Search bar — on top */}
+      {/* Day name + streak header */}
+      <View className="px-4 pt-3 pb-1">
+        <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest">
+          {DAY_NAMES[todayIndex]}
+        </Text>
+        {streak > 0 && (
+          <View className="flex-row items-center gap-1.5 mt-0.5">
+            <Icon as={Flame} className="size-3.5 text-warn" aria-hidden={true} />
+            <Text className="text-xs font-bold text-foreground">{streak}</Text>
+            <Text className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              day streak
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Search bar */}
       <View className="px-4 pt-2 pb-2">
         <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
           <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
@@ -300,6 +333,26 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           })}
         </ScrollView>
       </View>
+
+      {/* Today's session card */}
+      {completedToday.size > 0 && (
+        <View className="mx-4 mb-3 bg-secondary rounded-[14px] p-4">
+          <View className="flex-row items-center justify-between mb-2.5">
+            <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+              Today's session
+            </Text>
+            <Text className="text-[13px] font-bold text-foreground tabular-nums">
+              {completedToday.size} done
+            </Text>
+          </View>
+          <View className="flex-row flex-wrap gap-1.5">
+            {[...completedToday].map((id) => {
+              const e = exercises.find((ex) => ex.id === id);
+              return e ? <SessionPill key={id} label={capitalizeWords(e.name)} /> : null;
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Exercise list */}
       {filteredExercises.length === 0 ? (

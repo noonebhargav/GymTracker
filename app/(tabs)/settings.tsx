@@ -3,6 +3,7 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { RulerWheel } from '@/components/ui/ruler-wheel';
 import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
@@ -206,6 +207,7 @@ export default function SettingsTab() {
   const [error, setError] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [rulerOpen, setRulerOpen] = useState<'weight' | 'reps' | null>(null);
 
   useEffect(() => {
     let timeout = setTimeout(() => setError(true), 5000);
@@ -285,10 +287,6 @@ export default function SettingsTab() {
     }
   }, [db]);
 
-  const isKg = weightUnit === 'kg';
-  const wtFast = isKg ? 5 : 10;
-  const wtSlow = isKg ? 2.5 : 5;
-
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -307,9 +305,15 @@ export default function SettingsTab() {
     );
   }
 
+  const isKgRuler = weightUnit === 'kg';
+  const weightMax = isKgRuler ? 300 : 600;
+  const weightStep = isKgRuler ? 2.5 : 5;
+  const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
+
   return (
+    <View className="flex-1 bg-background">
     <ScrollView
-      className="flex-1 bg-background"
+      className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
     >
       <SectionHeader title="General" />
@@ -360,31 +364,26 @@ export default function SettingsTab() {
           persistInt('default_sets', v);
         }}
       />
-      <StepperRow
-        label="Weight"
-        value={defaultWeight}
-        min={0}
-        max={999}
-        step={wtSlow}
-        fastStep={wtFast}
-        unit={weightUnit}
-        onIncrement={(v) => {
-          setDefaultWeight(v);
-          persistInt('default_weight', toKg(v, weightUnit));
-        }}
-      />
-      <StepperRow
-        label="Reps"
-        value={defaultReps}
-        min={0}
-        max={99}
-        step={1}
-        fastStep={5}
-        onIncrement={(v) => {
-          setDefaultReps(v);
-          persistInt('default_reps', v);
-        }}
-      />
+      <Pressable
+        className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted/50"
+        onPress={() => setRulerOpen('weight')}
+        aria-label={`Default weight: ${defaultWeight} ${weightUnit}. Tap to change`}
+      >
+        <Text className="text-base text-foreground flex-1">Weight</Text>
+        <Text className="text-base font-semibold text-foreground tabular-nums">
+          {defaultWeight} {weightUnit}
+        </Text>
+      </Pressable>
+      <Pressable
+        className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted/50"
+        onPress={() => setRulerOpen('reps')}
+        aria-label={`Default reps: ${defaultReps}. Tap to change`}
+      >
+        <Text className="text-base text-foreground flex-1">Reps</Text>
+        <Text className="text-base font-semibold text-foreground tabular-nums">
+          {defaultReps} reps
+        </Text>
+      </Pressable>
 
       <SectionHeader title="Appearance" />
       <SegmentedControl
@@ -463,5 +462,28 @@ export default function SettingsTab() {
       </View>
 
     </ScrollView>
+
+    {rulerOpen !== null && (
+      <RulerWheel
+        title={rulerOpen === 'weight' ? 'DEFAULT WEIGHT' : 'DEFAULT REPS'}
+        value={rulerOpen === 'weight' ? defaultWeight : defaultReps}
+        onChange={(v) => {
+          if (rulerOpen === 'weight') {
+            setDefaultWeight(v);
+            persistInt('default_weight', toKg(v, weightUnit));
+          } else {
+            setDefaultReps(v);
+            persistInt('default_reps', v);
+          }
+        }}
+        min={0}
+        max={rulerOpen === 'weight' ? weightMax : 50}
+        step={rulerOpen === 'weight' ? weightStep : 1}
+        unit={rulerOpen === 'weight' ? weightUnit : 'reps'}
+        quickSteps={rulerOpen === 'weight' ? weightQuickSteps : [-5, -1, 1, 5]}
+        onDone={() => setRulerOpen(null)}
+      />
+    )}
+    </View>
   );
 }

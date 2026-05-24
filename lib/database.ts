@@ -482,3 +482,46 @@ export async function getMonthlyAggregates(
     endDate
   );
 }
+
+export async function getExercisePRHistory(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  beforeDate: string
+): Promise<number> {
+  const row = await db.getFirstAsync<{ max_weight: number | null }>(
+    `SELECT MAX(CAST(weight AS REAL)) as max_weight
+     FROM workout_logs
+     WHERE exercise_id = ? AND date_logged < ?`,
+    exerciseId,
+    beforeDate
+  );
+  return row?.max_weight ?? 0;
+}
+
+export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
+  const rows = await db.getAllAsync<{ date_logged: string }>(
+    `SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged DESC`
+  );
+  if (rows.length === 0) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let expected = new Date(today);
+
+  for (const { date_logged } of rows) {
+    const d = new Date(date_logged);
+    d.setHours(0, 0, 0, 0);
+    const diff = (expected.getTime() - d.getTime()) / 86400000;
+    if (diff === 0) {
+      streak++;
+      expected.setDate(expected.getDate() - 1);
+    } else if (diff === 1 && streak === 0) {
+      expected.setDate(expected.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}

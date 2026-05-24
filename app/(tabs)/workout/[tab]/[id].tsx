@@ -1,14 +1,7 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Pressable,
-  ScrollView,
-  TextInput,
-  Image,
-  Keyboard,
-} from 'react-native';
+import { View, Pressable, ScrollView, Image } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import {
@@ -19,6 +12,7 @@ import {
   replaceWorkoutSets,
   deleteWorkoutSets,
   getWorkoutLogsForToday,
+  getExercisePRHistory,
   displayWeight,
   toKg,
   type ExerciseDetail,
@@ -27,19 +21,17 @@ import {
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
+import { RulerWheel } from '@/components/ui/ruler-wheel';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
+  Check,
+  Dumbbell,
   ExternalLink,
   MinusCircle,
   Plus,
-  Check,
   Trash2,
-  Search,
+  Trophy,
 } from 'lucide-react-native';
 
 const DEFAULTS: Record<string, string> = {
@@ -63,20 +55,17 @@ export default function ExerciseSetEditor() {
 
   const [exercise, setExercise] = useState<ExerciseDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [defaultSets, setDefaultSets] = useState(3);
   const [defaultWeight, setDefaultWeight] = useState(20);
   const [defaultReps, setDefaultReps] = useState(10);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [setValues, setSetValues] = useState<SetValues[]>([]);
   const [initialSetValues, setInitialSetValues] = useState<SetValues[]>([]);
   const [isDone, setIsDone] = useState(false);
-  const [weightFocusedIdx, setWeightFocusedIdx] = useState<number | null>(null);
-  const [repsFocusedIdx, setRepsFocusedIdx] = useState<number | null>(null);
+  const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
+  const [prWeight, setPrWeight] = useState<number | null>(null);
 
   const today = todayDateStr();
   const isKg = weightUnit === 'kg';
-  const wtFast = isKg ? 5 : 10;
-  const wtSlow = isKg ? 2.5 : 5;
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);
 
@@ -87,7 +76,6 @@ export default function ExerciseSetEditor() {
 
   useEffect(() => {
     if (!exerciseId) return;
-
     Promise.all([
       getExerciseById(db, exerciseId),
       getSetting(db, 'default_sets'),
@@ -96,17 +84,13 @@ export default function ExerciseSetEditor() {
       getSetting(db, 'weight_unit'),
       getWorkoutLogsForToday(db, today),
     ]).then(([ex, ds, dw, dr, wu, todayLogs]) => {
-      if (!ex) {
-        router.back();
-        return;
-      }
+      if (!ex) { router.back(); return; }
       setExercise(ex);
 
       const dsNum = Number(ds ?? DEFAULTS.default_sets);
       const dwKg = Number(dw ?? DEFAULTS.default_weight);
       const drNum = Number(dr ?? DEFAULTS.default_reps);
       const resolvedUnit = (wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
-      setDefaultSets(dsNum);
       setDefaultWeight(displayWeight(dwKg, resolvedUnit));
       setDefaultReps(drNum);
       setWeightUnit(resolvedUnit);
@@ -129,15 +113,10 @@ export default function ExerciseSetEditor() {
           const sets: SetValues[] = [];
           for (let i = 0; i < dsNum; i++) {
             if (i < lastSets.length) {
-              sets.push({
-                weight: displayWeight(lastSets[i].weight, resolvedUnit),
-                reps: lastSets[i].reps,
-              });
+              sets.push({ weight: displayWeight(lastSets[i].weight, resolvedUnit), reps: lastSets[i].reps });
             } else if (lastSets.length > 0) {
-              sets.push({
-                weight: displayWeight(lastSets[lastSets.length - 1].weight, resolvedUnit),
-                reps: lastSets[lastSets.length - 1].reps,
-              });
+              const last = lastSets[lastSets.length - 1];
+              sets.push({ weight: displayWeight(last.weight, resolvedUnit), reps: last.reps });
             } else {
               sets.push({ weight: displayWeight(dwKg, resolvedUnit), reps: drNum });
             }
@@ -156,7 +135,6 @@ export default function ExerciseSetEditor() {
       next[idx] = { ...next[idx], [field]: Math.max(0, value) };
       return next;
     });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, []);
 
   const addSet = useCallback(() => {
@@ -165,6 +143,10 @@ export default function ExerciseSetEditor() {
       return [...prev, { ...last }];
     });
   }, [defaultWeight, defaultReps]);
+
+  const removeSet = useCallback((idx: number) => {
+    setSetValues((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
 
   const markAsDone = useCallback(async () => {
     if (!exercise) return;
@@ -183,8 +165,16 @@ export default function ExerciseSetEditor() {
     }));
     try {
       await replaceWorkoutSets(db, today, exercise.id, inputs);
+
+      const sessionMax = Math.max(...setValues.map((s) => s.weight));
+      const historicalMax = await getExercisePRHistory(db, exercise.id, today);
+      if (sessionMax > historicalMax) {
+        setPrWeight(sessionMax);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.back();
+      setIsDone(true);
+      setInitialSetValues([...setValues]);
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     }
@@ -198,14 +188,13 @@ export default function ExerciseSetEditor() {
   }, [db, today, exercise]);
 
   const goToDetail = useCallback(() => {
-    if (exercise) {
-      router.push(`/exercise-detail/${exercise.id}`);
-    }
+    if (exercise) router.push(`/exercise-detail/${exercise.id}`);
   }, [exercise]);
 
-  const removeSet = useCallback((idx: number) => {
-    setSetValues((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  const unit = isKg ? 'kg' : 'lbs';
+  const weightMax = isKg ? 300 : 600;
+  const weightStep = isKg ? 2.5 : 5;
+  const weightQuickSteps = isKg ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
 
   if (!loaded) {
     return (
@@ -217,29 +206,36 @@ export default function ExerciseSetEditor() {
 
   if (!exercise) return null;
 
+  const activeSetIdx = rulerWheel?.setIdx ?? null;
+  const activeField = rulerWheel?.field ?? null;
+
   return (
     <View className="flex-1 bg-background">
+      {/* Header */}
       <View className="flex-row items-center px-4 py-2 border-b border-border">
-        <Pressable
-          onPress={() => router.back()}
-          className="p-3"
-          aria-label="Back"
-        >
+        <Pressable onPress={() => router.back()} className="p-3" aria-label="Back">
           <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
         </Pressable>
         <Text className="text-lg font-semibold text-foreground flex-1" numberOfLines={1}>
           {capitalizeWords(exercise.name)}
         </Text>
+        {prWeight !== null && (
+          <View className="flex-row items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1 mr-1">
+            <Icon as={Trophy} className="size-3.5 text-primary" aria-hidden={true} />
+            <Text className="text-xs font-bold text-primary">PR — {prWeight} {unit}</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+        {/* Exercise info row */}
         <Pressable onPress={goToDetail} className="active:bg-muted/50">
           <View className="flex-row items-center px-4 py-4 gap-3 border-b border-border">
             {imageSource ? (
-              <Image source={imageSource} className="size-14 rounded-lg bg-muted" resizeMode="cover" />
+              <Image source={imageSource} className="w-[52px] h-[52px] rounded-[12px] bg-secondary" resizeMode="cover" />
             ) : (
-              <View className="size-14 rounded-lg bg-muted items-center justify-center">
-                <Icon as={Search} className="size-6 text-muted-foreground" />
+              <View className="w-[52px] h-[52px] rounded-[12px] bg-secondary items-center justify-center">
+                <Icon as={Dumbbell} className="size-6 text-muted-foreground" />
               </View>
             )}
             <View className="flex-1 min-w-0">
@@ -255,123 +251,73 @@ export default function ExerciseSetEditor() {
           </View>
         </Pressable>
 
+        {/* Set rows */}
         <View className="px-4 pt-4">
           {setValues.map((s, idx) => (
-            <View key={idx} className="mb-4">
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-xs text-muted-foreground font-semibold">
-                  Set {idx + 1}
-                </Text>
-                {setValues.length > 1 && (
-                  <Pressable
-                    onPress={() => removeSet(idx)}
-                    className="size-11 items-center justify-center rounded-full active:bg-destructive/10"
-                    aria-label={`Remove set ${idx + 1}`}
-                  >
-                    <Icon as={MinusCircle} className="size-5 text-destructive" />
-                  </Pressable>
-                )}
+            <View key={idx} className="flex-row items-center gap-2 mb-3">
+              {/* Set number */}
+              <View className="w-9 h-9 rounded-full bg-secondary items-center justify-center shrink-0">
+                <Text className="text-sm font-bold text-muted-foreground">{idx + 1}</Text>
               </View>
 
-              <View className="flex-row items-center justify-center gap-1.5 mb-2">
+              {/* Field cards */}
+              <View className="flex-row gap-2 flex-1">
+                {/* Weight card */}
                 <Pressable
-                  onPress={() => updateSetValue(idx, 'weight', Math.max(0, s.weight - wtFast))}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Decrease weight fast"
-                >
-                  <Icon as={ChevronsLeft} className="size-5 text-muted-foreground" />
-                </Pressable>
-                <Pressable
-                  onPress={() => updateSetValue(idx, 'weight', s.weight - wtSlow)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Decrease weight"
-                >
-                  <Icon as={ChevronLeft} className="size-5 text-muted-foreground" />
-                </Pressable>
-                <TextInput
-                  className="bg-transparent border border-border rounded-md px-3 py-3 text-center text-base font-semibold text-foreground tabular-nums"
-                  style={{ minWidth: 80 }}
-                  value={
-                    weightFocusedIdx === idx
-                      ? String(s.weight)
-                      : `${s.weight} ${isKg ? 'kg' : 'lbs'}`
-                  }
-                  onFocus={() => setWeightFocusedIdx(idx)}
-                  onBlur={() => setWeightFocusedIdx(null)}
-                  onChangeText={(t) => {
-                    const v = parseFloat(t);
-                    if (!isNaN(v)) updateSetValue(idx, 'weight', v);
+                  onPress={() => setRulerWheel({ setIdx: idx, field: 'weight' })}
+                  className="flex-1 bg-secondary rounded-xl p-2 items-center"
+                  style={{
+                    borderWidth: 2,
+                    borderColor: activeSetIdx === idx && activeField === 'weight' ? '#d8fe3d' : 'transparent',
                   }}
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  selectTextOnFocus
-                />
-                <Pressable
-                  onPress={() => updateSetValue(idx, 'weight', s.weight + wtSlow)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Increase weight"
+                  aria-label={`Set ${idx + 1} weight: ${s.weight} ${unit}`}
                 >
-                  <Icon as={ChevronRight} className="size-5 text-muted-foreground" />
+                  <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Weight
+                  </Text>
+                  <Text className="font-bold text-[22px] text-foreground tabular-nums leading-tight">
+                    {s.weight}
+                    <Text className="text-xs text-muted-foreground font-medium"> {unit}</Text>
+                  </Text>
                 </Pressable>
+
+                {/* Reps card */}
                 <Pressable
-                  onPress={() => updateSetValue(idx, 'weight', s.weight + wtFast)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Increase weight fast"
+                  onPress={() => setRulerWheel({ setIdx: idx, field: 'reps' })}
+                  className="flex-1 bg-secondary rounded-xl p-2 items-center"
+                  style={{
+                    borderWidth: 2,
+                    borderColor: activeSetIdx === idx && activeField === 'reps' ? '#d8fe3d' : 'transparent',
+                  }}
+                  aria-label={`Set ${idx + 1} reps: ${s.reps}`}
                 >
-                  <Icon as={ChevronsRight} className="size-5 text-muted-foreground" />
+                  <Text className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Reps
+                  </Text>
+                  <Text className="font-bold text-[22px] text-foreground tabular-nums leading-tight">
+                    {s.reps}
+                    <Text className="text-xs text-muted-foreground font-medium"> reps</Text>
+                  </Text>
                 </Pressable>
               </View>
 
-              <View className="flex-row items-center justify-center gap-1.5">
+              {/* Remove button */}
+              {setValues.length > 1 ? (
                 <Pressable
-                  onPress={() => updateSetValue(idx, 'reps', Math.max(0, s.reps - 5))}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Decrease reps fast"
+                  onPress={() => removeSet(idx)}
+                  className="w-9 h-9 items-center justify-center rounded-full active:bg-destructive/10 shrink-0"
+                  aria-label={`Remove set ${idx + 1}`}
                 >
-                  <Icon as={ChevronsLeft} className="size-5 text-muted-foreground" />
+                  <Icon as={MinusCircle} className="size-5 text-destructive" />
                 </Pressable>
-                <Pressable
-                  onPress={() => updateSetValue(idx, 'reps', s.reps - 1)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Decrease reps"
-                >
-                  <Icon as={ChevronLeft} className="size-5 text-muted-foreground" />
-                </Pressable>
-                <TextInput
-                  className="bg-transparent border border-border rounded-md px-3 py-3 text-center text-base font-semibold text-foreground tabular-nums"
-                  style={{ minWidth: 80 }}
-                  value={repsFocusedIdx === idx ? String(s.reps) : `${s.reps} reps`}
-                  onFocus={() => setRepsFocusedIdx(idx)}
-                  onBlur={() => setRepsFocusedIdx(null)}
-                  onChangeText={(t) => {
-                    const v = parseInt(t, 10);
-                    if (!isNaN(v)) updateSetValue(idx, 'reps', v);
-                  }}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  selectTextOnFocus
-                />
-                <Pressable
-                  onPress={() => updateSetValue(idx, 'reps', s.reps + 1)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Increase reps"
-                >
-                  <Icon as={ChevronRight} className="size-5 text-muted-foreground" />
-                </Pressable>
-                <Pressable
-                  onPress={() => updateSetValue(idx, 'reps', s.reps + 5)}
-                  className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
-                  aria-label="Increase reps fast"
-                >
-                  <Icon as={ChevronsRight} className="size-5 text-muted-foreground" />
-                </Pressable>
-              </View>
+              ) : (
+                <View className="w-9 shrink-0" />
+              )}
             </View>
           ))}
         </View>
 
+        {/* Add Set */}
         <View className="px-4 pb-4 mt-1">
           <Pressable
             onPress={addSet}
@@ -384,6 +330,7 @@ export default function ExerciseSetEditor() {
           </Pressable>
         </View>
 
+        {/* Action buttons */}
         <View className="px-4 pb-8 flex-row gap-3">
           {isDone && !isDirty ? (
             <Pressable
@@ -408,6 +355,23 @@ export default function ExerciseSetEditor() {
           )}
         </View>
       </ScrollView>
+
+      {/* RulerWheel overlay */}
+      {rulerWheel !== null && (
+        <RulerWheel
+          title={`SET ${rulerWheel.setIdx + 1} · ${rulerWheel.field.toUpperCase()}`}
+          value={rulerWheel.field === 'weight'
+            ? setValues[rulerWheel.setIdx].weight
+            : setValues[rulerWheel.setIdx].reps}
+          onChange={(v) => updateSetValue(rulerWheel.setIdx, rulerWheel.field, v)}
+          min={0}
+          max={rulerWheel.field === 'weight' ? weightMax : 50}
+          step={rulerWheel.field === 'weight' ? weightStep : 1}
+          unit={rulerWheel.field === 'weight' ? unit : 'reps'}
+          quickSteps={rulerWheel.field === 'weight' ? weightQuickSteps : [-5, -1, 1, 5]}
+          onDone={() => setRulerWheel(null)}
+        />
+      )}
     </View>
   );
 }
