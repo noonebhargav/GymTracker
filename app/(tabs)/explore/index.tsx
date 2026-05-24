@@ -109,23 +109,6 @@ const CategoryGrid = memo(function CategoryGrid({
   );
 });
 
-const ExerciseListItem = memo(function ExerciseListItem({
-  item,
-}: {
-  item: ExerciseRow;
-}) {
-  const g = toGoldStandardGroup(item.body_part, item.target);
-  return (
-    <ExerciseRowComponent
-      name={item.name}
-      equipment={item.equipment}
-      group={g}
-      assetId={item.assetId}
-      right={<RowChevron />}
-      onPress={() => router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`)}
-    />
-  );
-});
 
 export default function ExploreIndex() {
   const db = useSQLiteContext();
@@ -187,7 +170,19 @@ export default function ExploreIndex() {
   }, [exercises, searchText, showSearch]);
 
   const renderSearchResult = useCallback(
-    ({ item }: { item: ExerciseRow }) => <ExerciseListItem item={item} />,
+    ({ item }: { item: ExerciseRow }) => {
+      const g = toGoldStandardGroup(item.body_part, item.target);
+      return (
+        <ExerciseRowComponent
+          name={item.name}
+          equipment={item.equipment}
+          group={g}
+          assetId={item.assetId}
+          right={<RowChevron />}
+          onPress={() => router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`)}
+        />
+      );
+    },
     []
   );
 

@@ -56,27 +56,6 @@ function mapJsDayToOur(jsDay: number): number {
   return (jsDay + 6) % 7;
 }
 
-const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
-  item,
-  isDone,
-  selectedTab,
-}: {
-  item: ExerciseRow;
-  isDone: boolean;
-  selectedTab: string;
-}) {
-  const g = toGoldStandardGroup(item.body_part, item.target);
-  return (
-    <ExerciseRowComponent
-      name={item.name}
-      equipment={item.equipment}
-      group={g}
-      assetId={item.assetId}
-      right={isDone ? <DoneBadge /> : <RowChevron />}
-      onPress={() => router.push(`/workout/${encodeURIComponent(selectedTab)}/${item.id}`)}
-    />
-  );
-});
 
 export function WorkoutScreen({ tab }: { tab: string }) {
   const db = useSQLiteContext();
@@ -234,13 +213,19 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, []);
 
   const renderExerciseRow = useCallback(
-    ({ item }: { item: ExerciseRow }) => (
-      <WorkoutExerciseRow
-        item={item}
-        isDone={completedToday.has(item.id)}
-        selectedTab={selectedTab}
-      />
-    ),
+    ({ item }: { item: ExerciseRow }) => {
+      const g = toGoldStandardGroup(item.body_part, item.target);
+      return (
+        <ExerciseRowComponent
+          name={item.name}
+          equipment={item.equipment}
+          group={g}
+          assetId={item.assetId}
+          right={completedToday.has(item.id) ? <DoneBadge /> : <RowChevron />}
+          onPress={() => router.push(`/workout/${encodeURIComponent(selectedTab)}/${item.id}`)}
+        />
+      );
+    },
     [completedToday, selectedTab]
   );
 
