@@ -65,7 +65,7 @@
       "source": "uni-stack/uniwind",
       "sourceType": "github",
       "skillPath": "skills/uniwind/SKILL.md",
-      "computedHash": "74bec2c312e80d49fe9a1cc94d352d6b2b646fc4749208ebb3ded534df1f8708"
+      "computedHash": "7fcceaaa242348247c3e8af880eda2aebdb32ed51d185b298efe07cd78a5732e"
     },
     "using-git-worktrees": {
       "source": "obra/superpowers",

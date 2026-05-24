@@ -1,8 +1,20 @@
-import { View, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Switch } from '@/components/ui/switch';
-import { getSetting, setSetting } from '@/lib/database';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { RulerWheel } from '@/components/ui/ruler-wheel';
+import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -15,9 +27,7 @@ import {
   ChevronsRight,
   Minus,
   Plus,
-  Sun,
-  Moon,
-  SunMoon,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -27,7 +37,7 @@ const DEFAULTS: Record<string, string> = {
   default_weight: '20',
   default_reps: '10',
   weight_unit: 'lbs',
-  queue_enabled: 'true',
+  queue_enabled: 'false',
 };
 
 function SectionHeader({ title }: { title: string }) {
@@ -91,10 +101,10 @@ function StepperRow({
               onIncrement(Math.max(min, value - fastStep));
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }}
-            className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+            className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Decrease ${label} by ${fastStep}`}
           >
-              <Icon as={FastDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+              <Icon as={FastDecrease} className="size-5 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
         <Pressable
@@ -102,15 +112,15 @@ function StepperRow({
             onIncrement(Math.max(min, value - step));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           }}
-          className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+          className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Decrease ${label} by ${step}`}
         >
-          <Icon as={SlowDecrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowDecrease} className="size-5 text-muted-foreground" aria-hidden={true} />
         </Pressable>
 
         {editing ? (
           <TextInput
-            className="bg-muted border border-primary rounded-md px-3 py-1.5 text-center text-base font-semibold text-foreground min-w-16"
+            className="bg-muted border border-primary rounded-md px-3 py-3 text-center text-base font-semibold text-foreground min-w-16 max-w-24"
             value={text}
             onChangeText={setText}
             onBlur={commit}
@@ -132,10 +142,10 @@ function StepperRow({
             onIncrement(Math.min(max, value + step));
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
           }}
-          className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+          className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
           aria-label={`Increase ${label} by ${step}`}
         >
-          <Icon as={SlowIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+          <Icon as={SlowIncrease} className="size-5 text-muted-foreground" aria-hidden={true} />
         </Pressable>
         {showFast && (
           <Pressable
@@ -143,88 +153,13 @@ function StepperRow({
               onIncrement(Math.min(max, value + fastStep));
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }}
-            className="size-8 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
+            className="size-11 items-center justify-center rounded-md bg-muted border border-border active:bg-muted/80"
             aria-label={`Increase ${label} by ${fastStep}`}
           >
-            <Icon as={FastIncrease} className="size-4 text-muted-foreground" aria-hidden={true} />
+            <Icon as={FastIncrease} className="size-5 text-muted-foreground" aria-hidden={true} />
           </Pressable>
         )}
       </View>
-    </View>
-  );
-}
-
-function ThemeToggleRow({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const options = [
-    { key: 'light', icon: Sun, label: 'Light' },
-    { key: 'system', icon: SunMoon, label: 'System' },
-    { key: 'dark', icon: Moon, label: 'Dark' },
-  ];
-
-  const currentIndex = options.findIndex((o) => o.key === value);
-  const current = options[currentIndex === -1 ? 0 : currentIndex];
-
-  const cycle = () => {
-    const next = options[(currentIndex + 1) % options.length];
-    onChange(next.key);
-  };
-
-  return (
-    <Pressable
-      onPress={cycle}
-      className="flex-row items-center justify-between px-4 py-3 border-b border-border active:bg-muted/50"
-      accessibilityRole="button"
-      aria-label={`Dark Mode: ${current.label}. Tap to change.`}
-    >
-      <Text className="text-base text-foreground shrink min-w-0">Dark Mode</Text>
-      <View className="flex-row items-center gap-1.5 shrink-0">
-        <Icon as={current.icon} className="size-5 text-foreground" />
-        <Text className="text-sm text-muted-foreground min-w-[68px] text-right" numberOfLines={1}>
-          {current.label}
-        </Text>
-        <Icon
-          as={ChevronRight}
-          className="size-4 text-muted-foreground"
-          aria-hidden={true}
-        />
-      </View>
-    </Pressable>
-  );
-}
-
-function SwitchRow({
-  leftLabel,
-  subtitle,
-  rightLabel,
-  checked,
-  onToggle,
-}: {
-  leftLabel: string;
-  subtitle?: string;
-  rightLabel?: string;
-  checked: boolean;
-  onToggle: (v: boolean) => void;
-}) {
-  return (
-    <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
-      <View className="flex-1 mr-2">
-        <Text className="text-base text-foreground">{leftLabel}</Text>
-        {subtitle && (
-          <Text className="text-xs text-muted-foreground mt-0.5">{subtitle}</Text>
-        )}
-      </View>
-      {rightLabel && (
-        <Text className="text-sm text-muted-foreground mr-2 min-w-[36px] text-right" numberOfLines={1}>
-          {rightLabel}
-        </Text>
-      )}
-      <Switch checked={checked} onCheckedChange={onToggle} />
     </View>
   );
 }
@@ -246,7 +181,7 @@ function AccentRow({
             <Pressable
               key={color.key}
               onPress={() => onChange(color.key)}
-              className={`size-8 rounded-full ${
+              className={`size-10 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
               style={{ backgroundColor: color.swatchHex }}
@@ -265,11 +200,14 @@ export default function SettingsTab() {
   const [defaultWeight, setDefaultWeight] = useState(20);
   const [defaultReps, setDefaultReps] = useState(10);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
-  const [queueEnabled, setQueueEnabled] = useState(true);
+  const [queueEnabled, setQueueEnabled] = useState(false);
   const [theme, setTheme] = useState<string>('system');
-  const [accentColor, setAccentColor] = useState<string>('neutral');
+  const [accentColor, setAccentColor] = useState<string>('lime');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [rulerOpen, setRulerOpen] = useState<'weight' | 'reps' | null>(null);
 
   useEffect(() => {
     let timeout = setTimeout(() => setError(true), 5000);
@@ -283,13 +221,17 @@ export default function SettingsTab() {
         const thm = await getSetting(db, 'theme');
         const accent = await getSetting(db, 'accent_color');
 
+        const resolvedUnit = (unit as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
+        const weightKg = Number(weight ?? DEFAULTS.default_weight);
+
         setDefaultSets(Number(sets ?? DEFAULTS.default_sets));
-        setDefaultWeight(Number(weight ?? DEFAULTS.default_weight));
+        setDefaultWeight(displayWeight(weightKg, resolvedUnit));
         setDefaultReps(Number(reps ?? DEFAULTS.default_reps));
-        setWeightUnit((unit as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg'));
+        setWeightUnit(resolvedUnit);
         setQueueEnabled((queue ?? DEFAULTS.queue_enabled) === 'true');
         setTheme(thm ?? 'system');
-        setAccentColor(accent ?? 'neutral');
+        const validAccent = ACCENT_COLORS.some((c) => c.key === accent) ? accent! : 'lime';
+        setAccentColor(validAccent);
       } catch {
         setError(true);
       } finally {
@@ -314,9 +256,36 @@ export default function SettingsTab() {
     [db]
   );
 
-  const isKg = weightUnit === 'kg';
-  const wtFast = isKg ? 7.5 : 15;
-  const wtSlow = isKg ? 2.5 : 5;
+  const handleReset = useCallback(async () => {
+    setResetting(true);
+    try {
+      await resetAllData(db);
+
+      const kg = Number(DEFAULTS.default_weight);
+      const unit = DEFAULTS.weight_unit as 'lbs' | 'kg';
+
+      setDefaultSets(Number(DEFAULTS.default_sets));
+      setDefaultWeight(displayWeight(kg, unit));
+      setDefaultReps(Number(DEFAULTS.default_reps));
+      setWeightUnit(unit);
+      setQueueEnabled(false);
+      setTheme('system');
+      setAccentColor('lime');
+
+      Uniwind.setTheme('system');
+      InteractionManager.runAfterInteractions(() => {
+        applyAccentColor('lime');
+        setAccent(undefined);
+      });
+
+      setResetDialogOpen(false);
+    } catch {
+      Alert.alert('Error', 'Could not reset data. Please try again.');
+      setResetDialogOpen(false);
+    } finally {
+      setResetting(false);
+    }
+  }, [db]);
 
   if (loading) {
     return (
@@ -336,32 +305,47 @@ export default function SettingsTab() {
     );
   }
 
+  const isKgRuler = weightUnit === 'kg';
+  const weightMax = isKgRuler ? 300 : 600;
+  const weightStep = 2.5;
+  const weightLabelEvery = 4;
+  const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
+
   return (
+    <View className="flex-1 bg-background">
     <ScrollView
-      className="flex-1 bg-background"
+      className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
     >
       <SectionHeader title="General" />
-      <SwitchRow
-        leftLabel="Weight Unit"
-        rightLabel={weightUnit === 'kg' ? 'kg' : 'lbs'}
-        checked={isKg}
-        onToggle={(v) => {
-          const newUnit = v ? 'kg' : 'lbs';
-          const newDefault = v ? 10 : 20;
+      <SegmentedControl
+        label="Units"
+        options={[
+          { key: 'lbs', label: 'Lbs' },
+          { key: 'kg', label: 'Kg' },
+        ]}
+        value={weightUnit}
+        onChange={(v) => {
+          const newUnit = v as 'lbs' | 'kg';
+          const kg = toKg(defaultWeight, weightUnit);
+          const newDisplay = displayWeight(kg, newUnit);
           setWeightUnit(newUnit);
-          setDefaultWeight(newDefault);
+          setDefaultWeight(newDisplay);
           persistStr('weight_unit', newUnit);
-          persistInt('default_weight', newDefault);
+          persistInt('default_weight', toKg(newDisplay, newUnit));
         }}
       />
-      <SwitchRow
-        leftLabel="Queue Mode"
-        subtitle="Carry today's missed body parts forward one day"
-        checked={queueEnabled}
-        onToggle={(v) => {
-          setQueueEnabled(v);
-          persistStr('queue_enabled', String(v));
+      <SegmentedControl
+        label="Mode"
+        options={[
+          { key: 'false', label: 'Skip' },
+          { key: 'true', label: 'Queue' },
+        ]}
+        value={String(queueEnabled)}
+        onChange={(v) => {
+          const enabled = v === 'true';
+          setQueueEnabled(enabled);
+          persistStr('queue_enabled', v);
         }}
       />
 
@@ -381,41 +365,44 @@ export default function SettingsTab() {
           persistInt('default_sets', v);
         }}
       />
-      <StepperRow
-        label="Weight"
-        value={defaultWeight}
-        min={0}
-        max={999}
-        step={wtSlow}
-        fastStep={wtFast}
-        unit={weightUnit}
-        onIncrement={(v) => {
-          setDefaultWeight(v);
-          persistInt('default_weight', v);
-        }}
-      />
-      <StepperRow
-        label="Reps"
-        value={defaultReps}
-        min={0}
-        max={99}
-        step={1}
-        fastStep={5}
-        onIncrement={(v) => {
-          setDefaultReps(v);
-          persistInt('default_reps', v);
-        }}
-      />
+      <Pressable
+        className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted/50"
+        onPress={() => setRulerOpen('weight')}
+        aria-label={`Default weight: ${defaultWeight} ${weightUnit}. Tap to change`}
+      >
+        <Text className="text-base text-foreground flex-1">Weight</Text>
+        <Text className="text-base font-semibold text-foreground tabular-nums">
+          {defaultWeight} {weightUnit}
+        </Text>
+      </Pressable>
+      <Pressable
+        className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted/50"
+        onPress={() => setRulerOpen('reps')}
+        aria-label={`Default reps: ${defaultReps}. Tap to change`}
+      >
+        <Text className="text-base text-foreground flex-1">Reps</Text>
+        <Text className="text-base font-semibold text-foreground tabular-nums">
+          {defaultReps} reps
+        </Text>
+      </Pressable>
 
       <SectionHeader title="Appearance" />
-      <ThemeToggleRow
+      <SegmentedControl
+        label="Theme"
+        options={[
+          { key: 'light', label: 'Light' },
+          { key: 'system', label: 'System' },
+          { key: 'dark', label: 'Dark' },
+        ]}
         value={theme}
         onChange={(v) => {
           setTheme(v);
           persistStr('theme', v);
           const key = v as 'light' | 'dark' | 'system';
           Uniwind.setTheme(key);
-          applyAccentColor(accentColor, (v === 'system' ? 'light' : v) as 'light' | 'dark');
+          InteractionManager.runAfterInteractions(() => {
+            applyAccentColor(accentColor);
+          });
         }}
       />
       <AccentRow
@@ -423,16 +410,77 @@ export default function SettingsTab() {
         onChange={(key) => {
           setAccentColor(key);
           persistStr('accent_color', key);
-          const effective = theme === 'system' ? 'light' : theme;
-          applyAccentColor(key, effective as 'light' | 'dark');
-          if (key && key !== 'neutral') {
-            const color = ACCENT_COLORS.find((c) => c.key === key);
-            setAccent(color ? (theme === 'dark' ? color.dark.primaryHex : color.light.primaryHex) : undefined);
-          } else {
-            setAccent(undefined);
-          }
+          InteractionManager.runAfterInteractions(() => {
+            applyAccentColor(key);
+          });
+          const color = ACCENT_COLORS.find((c) => c.key === key);
+          setAccent(color ? color.swatchHex : undefined);
         }}
       />
+
+      <SectionHeader title="Danger Zone" />
+      <View className="px-4 py-4">
+        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Pressable
+              className="w-full h-[52px] rounded-[14px] bg-danger-soft border border-danger/20 items-center justify-center active:opacity-80"
+              aria-label="Reset all data"
+            >
+              <View className="flex-row items-center gap-2">
+                <Icon as={TriangleAlert} className="size-4 text-destructive" />
+                <Text className="text-base font-bold text-destructive">Reset all data</Text>
+              </View>
+            </Pressable>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset All Data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete all your workout history, weekly routines, and settings. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {resetting && (
+              <View className="items-center py-4">
+                <ActivityIndicator />
+                <Text className="text-sm text-muted-foreground mt-3">Resetting data...</Text>
+              </View>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={resetting}>
+                <Text>Cancel</Text>
+              </AlertDialogCancel>
+              <Button variant="destructive" size="sm" onPress={handleReset} disabled={resetting}>
+                {resetting ? <Text>Resetting...</Text> : <Text>Reset</Text>}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </View>
+
     </ScrollView>
+
+    {rulerOpen !== null && (
+      <RulerWheel
+        title={rulerOpen === 'weight' ? 'DEFAULT WEIGHT' : 'DEFAULT REPS'}
+        value={rulerOpen === 'weight' ? defaultWeight : defaultReps}
+        onChange={(v) => {
+          if (rulerOpen === 'weight') {
+            setDefaultWeight(v);
+            persistInt('default_weight', toKg(v, weightUnit));
+          } else {
+            setDefaultReps(v);
+            persistInt('default_reps', v);
+          }
+        }}
+        min={0}
+        max={rulerOpen === 'weight' ? weightMax : 50}
+        step={rulerOpen === 'weight' ? weightStep : 1}
+        labelEvery={rulerOpen === 'weight' ? weightLabelEvery : 5}
+        unit={rulerOpen === 'weight' ? weightUnit : 'reps'}
+        quickSteps={rulerOpen === 'weight' ? weightQuickSteps : [-5, -1, 1, 5]}
+        onDone={() => setRulerOpen(null)}
+      />
+    )}
+    </View>
   );
 }

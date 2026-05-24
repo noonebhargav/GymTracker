@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { getDayWorkoutDetail, type DayWorkoutDetailRow } from '@/lib/database';
+import { getDayWorkoutDetail, getSetting, displayWeight, type DayWorkoutDetailRow } from '@/lib/database';
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
-import { ArrowLeft, Search } from 'lucide-react-native';
+import { ArrowLeft, Dumbbell } from 'lucide-react-native';
 
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -34,11 +34,16 @@ export default function HistoryDateDetail() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const [detail, setDetail] = useState<DayWorkoutDetailRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
 
   useEffect(() => {
     if (!date) return;
-    getDayWorkoutDetail(db, date).then((rows) => {
+    Promise.all([
+      getDayWorkoutDetail(db, date),
+      getSetting(db, 'weight_unit'),
+    ]).then(([rows, wu]) => {
       setDetail(rows);
+      setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       setLoaded(true);
     });
   }, [db, date]);
@@ -104,7 +109,7 @@ export default function HistoryDateDetail() {
   return (
     <View className="flex-1 bg-background">
       <View className="flex-row items-center px-4 py-2 border-b border-border">
-        <Pressable onPress={() => router.back()} className="p-1 mr-2" aria-label="Go back">
+        <Pressable onPress={() => router.back()} className="p-3 mr-2" aria-label="Go back">
           <Icon as={ArrowLeft} className="size-5 text-foreground" />
         </Pressable>
         <Text className="text-lg font-semibold text-foreground flex-1" numberOfLines={1}>
@@ -140,7 +145,7 @@ export default function HistoryDateDetail() {
               Sets: {daySummary.setCount}
             </Text>
             <Text className="text-sm text-muted-foreground">
-              Avg Weight: {Math.round(daySummary.avgWeight)} lbs
+              Avg Weight: {Math.round(displayWeight(daySummary.avgWeight, weightUnit))} {weightUnit}
               {'  |  '}
               Avg Reps: {Math.round(daySummary.avgReps)}
             </Text>
@@ -156,13 +161,13 @@ export default function HistoryDateDetail() {
                 {imageSource ? (
                   <Image
                     source={imageSource}
-                    className="size-10 rounded-md bg-muted"
+                    className="w-[52px] h-[52px] rounded-[12px] bg-secondary"
                     resizeMode="cover"
                     accessibilityLabel={capitalizeWords(group.name)}
                   />
                 ) : (
-                  <View className="size-10 rounded-md bg-muted items-center justify-center">
-                    <Icon as={Search} className="size-4 text-muted-foreground" aria-hidden={true} />
+                  <View className="w-[52px] h-[52px] rounded-[12px] bg-secondary items-center justify-center">
+                    <Icon as={Dumbbell} className="size-6 text-muted-foreground" aria-hidden={true} />
                   </View>
                 )}
                 <View className="flex-1 min-w-0">
@@ -186,7 +191,7 @@ export default function HistoryDateDetail() {
                       {s.setNumber}
                     </Text>
                     <Text className="text-sm text-foreground tabular-nums">
-                      {s.weight} lbs
+                      {displayWeight(s.weight, weightUnit)} {weightUnit}
                     </Text>
                     <Text className="text-sm text-muted-foreground">×</Text>
                     <Text className="text-sm text-foreground tabular-nums">

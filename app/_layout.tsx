@@ -29,13 +29,9 @@ function AccentLoader() {
         Uniwind.setTheme(thm);
       }
       const effective = (thm === 'system' ? (theme as string) : thm) || theme;
-      applyAccentColor(accent, (effective ?? 'light') as 'light' | 'dark');
-      if (accent && accent !== 'neutral') {
-        const color = ACCENT_COLORS.find((c) => c.key === accent);
-        setAccent(color ? (theme === 'dark' ? color.dark.primaryHex : color.light.primaryHex) : undefined);
-      } else {
-        setAccent(undefined);
-      }
+      applyAccentColor(accent);
+      const color = ACCENT_COLORS.find((c) => c.key === accent);
+      setAccent(color ? color.swatchHex : undefined);
     })();
   }, [db, theme]);
 

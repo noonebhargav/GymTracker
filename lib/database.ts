@@ -1,6 +1,18 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import seedData from '@/lib/seed_data.json';
 
+const LBS_FACTOR = 2.205;
+
+export function displayWeight(kg: number, unit: 'lbs' | 'kg'): number {
+  if (unit === 'kg') return Math.round(kg / 2.5) * 2.5;
+  return Math.round((kg * LBS_FACTOR) / 5) * 5;
+}
+
+export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
+  if (fromUnit === 'kg') return value;
+  return Math.round((value / LBS_FACTOR) / 2.5) * 2.5;
+}
+
 type ExerciseSeed = {
   id: string;
   name: string;
@@ -225,6 +237,39 @@ export async function setSetting(
   );
 }
 
+export async function resetAllData(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM workout_logs');
+    await db.execAsync('DELETE FROM routines');
+    await db.execAsync('DELETE FROM settings');
+
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('seeded', 'true')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_sets', '3')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_weight', '20')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('default_reps', '10')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('weight_unit', 'lbs')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('queue_enabled', 'false')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('theme', 'system')"
+    );
+    await db.runAsync(
+      "INSERT INTO settings (key, value) VALUES ('accent_color', 'lime')"
+    );
+  });
+}
+
 export async function getLoggedBodyPartsForDate(
   db: SQLiteDatabase,
   date: string
@@ -249,7 +294,7 @@ export async function getRecentExercises(
      JOIN exercises e ON wl.exercise_id = e.id
      WHERE wl.body_part IN (${placeholders})
      GROUP BY wl.exercise_id
-     ORDER BY MAX(wl.date_logged) DESC
+      ORDER BY MAX(wl.date_logged) DESC, MAX(wl.created_at) DESC
      LIMIT ?`,
     ...bodyParts,
     limit
@@ -435,5 +480,115 @@ export async function getMonthlyAggregates(
     ORDER BY date_logged`,
     startDate,
     endDate
+  );
+}
+
+export async function getExercisePRHistory(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  beforeDate: string
+): Promise<number> {
+  const row = await db.getFirstAsync<{ max_weight: number | null }>(
+    `SELECT MAX(CAST(weight AS REAL)) as max_weight
+     FROM workout_logs
+     WHERE exercise_id = ? AND date_logged < ?`,
+    exerciseId,
+    beforeDate
+  );
+  return row?.max_weight ?? 0;
+}
+
+export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
+  const rows = await db.getAllAsync<{ date_logged: string }>(
+    `SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged DESC`
+  );
+  if (rows.length === 0) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let expected = new Date(today);
+
+  for (const { date_logged } of rows) {
+    const d = new Date(date_logged);
+    d.setHours(0, 0, 0, 0);
+    const diff = (expected.getTime() - d.getTime()) / 86400000;
+    if (diff === 0) {
+      streak++;
+      expected.setDate(expected.getDate() - 1);
+    } else if (diff === 1 && streak === 0) {
+      expected.setDate(expected.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+export type BodyPartAvgRow = {
+  body_part: string;
+  avg_weight: number;
+};
+
+export async function getBodyPartAvgWeights(
+  db: SQLiteDatabase,
+  startDate: string,
+  endDate: string
+): Promise<BodyPartAvgRow[]> {
+  return db.getAllAsync<BodyPartAvgRow>(
+    `SELECT body_part, AVG(CAST(weight AS REAL)) as avg_weight
+     FROM workout_logs
+     WHERE date_logged >= ? AND date_logged <= ?
+     GROUP BY body_part`,
+    startDate,
+    endDate
+  );
+}
+
+export type WindowPRRow = {
+  exercise_id: string;
+  exercise_name: string;
+  max_weight: number;
+  best_date: string;
+};
+
+export async function getWindowPRs(
+  db: SQLiteDatabase,
+  windowStart: string,
+  windowEnd: string
+): Promise<WindowPRRow[]> {
+  return db.getAllAsync<WindowPRRow>(
+    `SELECT
+       sub.exercise_id,
+       e.name AS exercise_name,
+       sub.max_weight,
+       (
+         SELECT wl2.date_logged
+         FROM workout_logs wl2
+         WHERE wl2.exercise_id = sub.exercise_id
+           AND wl2.weight = sub.max_weight
+           AND wl2.date_logged >= ?
+           AND wl2.date_logged <= ?
+         ORDER BY wl2.date_logged DESC
+         LIMIT 1
+       ) AS best_date
+     FROM (
+       SELECT wl.exercise_id, MAX(wl.weight) AS max_weight
+       FROM workout_logs wl
+       WHERE wl.date_logged >= ? AND wl.date_logged <= ?
+         AND wl.weight > COALESCE((
+           SELECT MAX(weight) FROM workout_logs
+           WHERE exercise_id = wl.exercise_id AND date_logged < ?
+         ), 0)
+       GROUP BY wl.exercise_id
+     ) sub
+     JOIN exercises e ON sub.exercise_id = e.id
+     ORDER BY best_date DESC`,
+    windowStart,
+    windowEnd,
+    windowStart,
+    windowEnd,
+    windowStart
   );
 }

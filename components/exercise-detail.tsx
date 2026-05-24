@@ -47,7 +47,7 @@ export function ExerciseDetailModal({
           <Text className="text-lg font-semibold text-foreground flex-1" numberOfLines={1}>
             {capitalizeWords(exercise.name)}
           </Text>
-          <Pressable onPress={onClose} className="p-2 active:bg-muted rounded-full">
+          <Pressable onPress={onClose} className="p-3 active:bg-muted rounded-full">
             <Icon as={X} className="size-5 text-foreground" />
           </Pressable>
         </View>

@@ -7,15 +7,15 @@ import {
   OTHER_EQUIPMENT_TYPES,
   PRIMARY_EQUIPMENT,
 } from '@/lib/exercise-groups';
-import { getExerciseImage } from '@/lib/exercise-assets';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
-import { ArrowLeft, ChevronRight, Search } from 'lucide-react-native';
+import { ArrowLeft, Search } from 'lucide-react-native';
 import { capitalizeWords } from '@/lib/utils';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, View, ActivityIndicator } from 'react-native';
+import { FlatList, Pressable, View, ActivityIndicator } from 'react-native';
 
 const GOLD_LOWER = GOLD_STANDARD_GROUPS.map((g) => g.toLowerCase());
 const PRIMARY_LOWER = PRIMARY_EQUIPMENT.map((e) => e.toLowerCase());
@@ -87,7 +87,7 @@ export default function FilterPage() {
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable
           onPress={() => router.back()}
-          className="p-1 mr-2"
+          className="p-3 mr-2"
           aria-label="Back"
         >
           <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
@@ -111,36 +111,19 @@ export default function FilterPage() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push(`/explore/${filter}/${item.id}`)}
-              className="active:bg-muted"
-            >
-              <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
-                {getExerciseImage(item.assetId) ? (
-                  <Image
-                    source={getExerciseImage(item.assetId)!}
-                    className="size-12 rounded-md bg-muted"
-                    resizeMode="cover"
-                    accessibilityLabel={capitalizeWords(item.name)}
-                  />
-                ) : (
-                  <View className="size-12 rounded-md bg-muted items-center justify-center">
-                    <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
-                  </View>
-                )}
-                <View className="flex-1 min-w-0">
-                  <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-                    {capitalizeWords(item.name)}
-                  </Text>
-                  <Text className="text-xs text-muted-foreground mt-0.5">
-                    {capitalizeWords(item.equipment) || 'N/A'}
-                  </Text>
-                </View>
-                <Icon as={ChevronRight} className="size-4 text-muted-foreground" aria-hidden={true} />
-              </View>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const g = toGoldStandardGroup(item.body_part, item.target);
+            return (
+              <ExerciseRowComponent
+                name={item.name}
+                equipment={item.equipment}
+                group={g}
+                assetId={item.assetId}
+                right={<RowChevron />}
+                onPress={() => router.push(`/explore/${filter}/${item.id}`)}
+              />
+            );
+          }}
         />
       )}
     </View>

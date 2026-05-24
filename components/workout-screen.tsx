@@ -4,7 +4,6 @@ import {
   ScrollView,
   TextInput,
   FlatList,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
@@ -16,17 +15,17 @@ import {
   getLoggedBodyPartsForDate,
   getRecentExercises,
   getWorkoutLogsForToday,
+  getWorkoutStreak,
   type ExerciseRow,
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
-import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
+import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Check,
-  ChevronRight,
+  Flame,
   Search,
   X,
 } from 'lucide-react-native';
@@ -38,12 +37,11 @@ const DEFAULTS: Record<string, string> = {
   default_weight: '20',
   default_reps: '10',
   weight_unit: 'lbs',
-  queue_enabled: 'true',
+  queue_enabled: 'false',
 };
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
-const HIT_SLOP_8 = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 function todayDateStr(): string {
   const d = new Date();
@@ -60,63 +58,18 @@ function mapJsDayToOur(jsDay: number): number {
   return (jsDay + 6) % 7;
 }
 
-const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
-  item,
-  isDone,
-  selectedTab,
-}: {
-  item: ExerciseRow;
-  isDone: boolean;
-  selectedTab: string;
-}) {
-  const g = toGoldStandardGroup(item.body_part, item.target);
-  const imageSource = getExerciseImage(item.assetId);
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function SessionPill({ label }: { label: string }) {
   return (
-    <Pressable
-      onPress={() =>
-        router.push(
-          `/workout/${encodeURIComponent(selectedTab)}/${item.id}`
-        )
-      }
-      className="active:bg-muted"
-    >
-      <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
-        {imageSource ? (
-          <Image
-            source={imageSource}
-            className="size-12 rounded-md bg-muted"
-            resizeMode="cover"
-            accessibilityLabel={capitalizeWords(item.name)}
-          />
-        ) : (
-          <View className="size-12 rounded-md bg-muted items-center justify-center">
-            <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
-          </View>
-        )}
-        <View className="flex-1 min-w-0">
-          <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-            {capitalizeWords(item.name)}
-          </Text>
-          <Text className="text-xs text-muted-foreground mt-0.5">
-            {capitalizeWords(item.equipment) || 'N/A'}
-            {g ? ` · ${g}` : ''}
-          </Text>
-        </View>
-        {isDone && (
-          <View className="flex-row items-center gap-1 bg-primary/20 border border-primary/40 rounded-full px-2.5 py-1">
-            <Icon as={Check} className="size-3 text-primary" aria-hidden={true} />
-            <Text className="text-xs font-semibold text-primary">Done</Text>
-          </View>
-        )}
-        <Icon
-          as={ChevronRight}
-          className="size-4 text-muted-foreground"
-          aria-hidden={true}
-        />
-      </View>
-    </Pressable>
+    <View className="bg-primary rounded-full px-2.5 py-1">
+      <Text className="text-[11px] font-semibold text-primary-foreground" numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
-});
+}
 
 export function WorkoutScreen({ tab }: { tab: string }) {
   const db = useSQLiteContext();
@@ -131,8 +84,9 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   const [recentExercises, setRecentExercises] = useState<ExerciseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const [queueEnabled, setQueueEnabled] = useState(true);
+  const [queueEnabled, setQueueEnabled] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [streak, setStreak] = useState(0);
 
   const today = todayDateStr();
   const todayIndex = mapJsDayToOur(new Date().getDay());
@@ -168,9 +122,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         getSetting(db, 'queue_enabled'),
         getWorkoutLogsForToday(db, today),
         getAllRoutines(db),
-      ]).then(([qe, todayLogs, routs]) => {
+        getWorkoutStreak(db),
+      ]).then(([qe, todayLogs, routs, s]) => {
         setQueueEnabled((qe ?? DEFAULTS.queue_enabled) === 'true');
         setCompletedToday(new Set(todayLogs.map((r) => r.exercise_id)));
+        setStreak(s);
         const map = new Map<number, Set<string>>();
         for (const r of routs) {
           if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
@@ -203,7 +159,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [db, loaded, queueEnabled]);
 
   useEffect(() => {
-    if (!loaded || todayParts.length === 0) return;
+    if (!loaded) return;
+    if (todayParts.length === 0) {
+      setRecentExercises([]);
+      return;
+    }
     getRecentExercises(db, todayParts, 15).then((rows) => {
       setRecentExercises(rows);
     });
@@ -221,10 +181,12 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [exercises]);
 
   const baseFiltered = useMemo(() => {
-    if (selectedTab === 'recent') return recentExercises;
-    if (selectedTab === 'all') {
+    let result: ExerciseRow[];
+    if (selectedTab === 'recent') {
+      result = recentExercises;
+    } else if (selectedTab === 'all') {
       const ids = new Set<string>();
-      const result: ExerciseRow[] = [];
+      result = [];
       for (const part of todayParts) {
         for (const ex of goldMap.get(part) ?? []) {
           if (!ids.has(ex.id)) {
@@ -233,10 +195,17 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           }
         }
       }
-      return result;
+    } else {
+      result = goldMap.get(selectedTab) ?? [];
     }
-    return goldMap.get(selectedTab) ?? [];
-  }, [selectedTab, recentExercises, todayParts, goldMap]);
+    return [...result].sort((a, b) => {
+      const aDone = completedToday.has(a.id);
+      const bDone = completedToday.has(b.id);
+      if (aDone && !bDone) return -1;
+      if (!aDone && bDone) return 1;
+      return 0;
+    });
+  }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
 
   const filteredExercises = useMemo(() => {
     if (!searchText) return baseFiltered;
@@ -257,17 +226,23 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const navigateToTab = useCallback((tabKey: string) => {
     setSearchText('');
-    router.push(`/workout/${encodeURIComponent(tabKey)}`);
+    router.setParams({ tab: tabKey === 'recent' ? 'recent' : tabKey });
   }, []);
 
   const renderExerciseRow = useCallback(
-    ({ item }: { item: ExerciseRow }) => (
-      <WorkoutExerciseRow
-        item={item}
-        isDone={completedToday.has(item.id)}
-        selectedTab={selectedTab}
-      />
-    ),
+    ({ item }: { item: ExerciseRow }) => {
+      const g = toGoldStandardGroup(item.body_part, item.target);
+      return (
+        <ExerciseRowComponent
+          name={item.name}
+          equipment={item.equipment}
+          group={g}
+          assetId={item.assetId}
+          right={completedToday.has(item.id) ? <DoneBadge /> : <RowChevron />}
+          onPress={() => router.push(`/workout/${encodeURIComponent(selectedTab)}/${item.id}`)}
+        />
+      );
+    },
     [completedToday, selectedTab]
   );
 
@@ -281,10 +256,26 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Search bar — on top */}
+      {/* Day name + streak header */}
+      <View className="px-4 pt-3 pb-1">
+        <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest">
+          {DAY_NAMES[todayIndex]}
+        </Text>
+        {streak > 0 && (
+          <View className="flex-row items-center gap-1.5 mt-0.5">
+            <Icon as={Flame} className="size-3.5 text-warn" aria-hidden={true} />
+            <Text className="text-xs font-bold text-foreground">{streak}</Text>
+            <Text className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              day streak
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Search bar */}
       <View className="px-4 pt-2 pb-2">
-        <View className="flex-row items-center bg-muted rounded-lg px-3 h-10">
-          <Icon as={Search} className="size-4 text-muted-foreground mr-2" aria-hidden={true} />
+        <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
+          <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
           <TextInput
             className="flex-1 text-sm text-foreground"
             placeholder="Search exercises…"
@@ -300,8 +291,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           {searchText.length > 0 && (
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-1"
-              hitSlop={HIT_SLOP_8}
+              className="p-3"
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -324,10 +314,10 @@ export function WorkoutScreen({ tab }: { tab: string }) {
               <Pressable
                 key={t.key}
                 onPress={() => navigateToTab(t.key)}
-                className={`h-9 px-3 items-center justify-center rounded-full ${
+                className={`h-9 px-4 items-center justify-center rounded-full ${
                   active
                     ? 'bg-primary border border-primary'
-                    : 'bg-muted border border-border active:bg-muted/80'
+                    : 'bg-secondary text-muted-foreground active:bg-secondary/80'
                 }`}
                 aria-label={`Filter by ${t.label}`}
               >
@@ -343,6 +333,26 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           })}
         </ScrollView>
       </View>
+
+      {/* Today's session card */}
+      {completedToday.size > 0 && (
+        <View className="mx-4 mb-3 bg-secondary rounded-[14px] p-4">
+          <View className="flex-row items-center justify-between mb-2.5">
+            <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+              Today's session
+            </Text>
+            <Text className="text-[13px] font-bold text-foreground tabular-nums">
+              {completedToday.size} done
+            </Text>
+          </View>
+          <View className="flex-row flex-wrap gap-1.5">
+            {[...completedToday].map((id) => {
+              const e = exercises.find((ex) => ex.id === id);
+              return e ? <SessionPill key={id} label={capitalizeWords(e.name)} /> : null;
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Exercise list */}
       {filteredExercises.length === 0 ? (

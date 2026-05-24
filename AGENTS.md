@@ -21,25 +21,69 @@
 ## Directory Structure
 
 ```
-app/                  # Expo Router (file-based routes)
-  _layout.tsx         # Root layout — Stack navigator, ThemeProvider
-  index.tsx           # Entry screen
-  +not-found.tsx      # 404
+app/
+  _layout.tsx                       # Root layout — Stack navigator, ThemeProvider, SystemUI
+  index.tsx                         # Entry screen
+  +html.tsx                         # Web COEP/COOP headers
+  +not-found.tsx                    # 404
+  exercise-detail/[id].tsx          # Root-level modal: GIF + instructions
+  (tabs)/
+    _layout.tsx                     # Tab bar (custom TabBar component)
+    routine.tsx                     # Routine tab: day selector + body-part chips
+    settings.tsx                    # Settings tab
+    explore/
+      _layout.tsx
+      index.tsx                     # Search + Body Parts / Equipment sections
+      [filter]/index.tsx            # Category list (body part or equipment)
+      [filter]/[id].tsx             # Single exercise detail (within explore stack)
+    history/
+      _layout.tsx
+      index.tsx                     # Calendar / Summary / Insights tab switcher
+      [date].tsx                    # Day detail: logged exercises for a date
+    workout/
+      _layout.tsx
+      index.tsx                     # Today's workout (redirects to [tab])
+      [tab].tsx                     # Exercise list for a body-part tab
+      [tab]/[id].tsx                # Set editor: weight, reps, sets
+
 components/
-  ui/                 # shadcn/ui primitives (Button, Text, etc.)
-    button.tsx
-    text.tsx
+  navigation/tab-bar.tsx            # Custom bottom tab bar
+  exercise-detail.tsx               # Exercise info card (GIF, target, equipment)
+  exercise-row.tsx                  # List row for a single exercise
+  workout-screen.tsx                # Shared workout screen (tabs + search + list)
+  history/
+    calendar-tab.tsx                # Monthly calendar view
+    summary-tab.tsx                 # Weekly summary: body parts, sets, avg weight
+    insights-tab.tsx                # 10-week chart, body-part heatmap, PRs
+  ui/
+    alert-dialog.tsx                # Modal confirmation dialog
+    button.tsx                      # CVA button variants
+    icon.tsx                        # Lucide icon wrapper
+    ruler-wheel.tsx                 # Horizontal scroll ruler picker
+    segmented-control.tsx           # Segmented toggle row
+    switch.tsx                      # Toggle switch
+    text.tsx                        # Themed text component
+
 lib/
-  seedData.json       # 1,324 exercises with body_part, target, equipment, images
-  theme.ts            # Navigation theme (light/dark)
-  utils.ts            # cn() — clsx + tailwind-merge
+  database.ts                       # All SQLite queries + schema init + seed
+  accent-colors.ts                  # Accent color definitions + CSS variable injection
+  accent-store.ts                   # Zustand-like accent color global state
+  asset-map.ts                      # exercise id → image/GIF asset require() map
+  exercise-assets.ts                # Helpers for resolving exercise image/video URIs
+  exercise-groups.ts                # Gold Standard groups + equipment consolidation
+  seedData.json                     # 1,324 exercises (body_part, target, equipment, images)
+  theme.ts                          # Navigation theme (light/dark)
+  use-responsive.ts                 # Screen-size breakpoint hook
+  utils.ts                          # cn(), capitalizeWords()
+
 assets/
   exercises/
-    images/           # 1,316 exercise illustration images (JPG)
-    videos/           # Exercise animation GIFs
-global.css            # Tailwind CSS variables (light/dark theme)
-app.json              # Expo config
-dataset.md            # Exercise taxonomy reference
+    images/                         # 1,316 exercise illustration JPGs
+    videos/                         # Exercise animation GIFs
+
+global.css                          # Tailwind CSS v4 variables (light/dark theme)
+app.json                            # Expo config (typedRoutes, scheme, plugins)
+dataset.md                          # Exercise taxonomy reference
 ```
 
 ## Commands

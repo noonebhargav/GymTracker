@@ -4,7 +4,8 @@ import { Icon } from '@/components/ui/icon';
 import { getAllRoutines, setRoutineDay } from '@/lib/database';
 import { GOLD_STANDARD_GROUPS } from '@/lib/exercise-groups';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { CalendarClock, Check } from 'lucide-react-native';
@@ -26,18 +27,20 @@ export default function RoutineTab() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [routines, setRoutines] = useState<Map<number, Set<string>>>(new Map());
 
-  useEffect(() => {
-    getAllRoutines(db).then((rows) => {
-      const map = new Map<number, Set<string>>();
-      for (const row of rows) {
-        if (!map.has(row.day_of_week)) {
-          map.set(row.day_of_week, new Set());
+  useFocusEffect(
+    useCallback(() => {
+      getAllRoutines(db).then((rows) => {
+        const map = new Map<number, Set<string>>();
+        for (const row of rows) {
+          if (!map.has(row.day_of_week)) {
+            map.set(row.day_of_week, new Set());
+          }
+          map.get(row.day_of_week)!.add(row.body_part);
         }
-        map.get(row.day_of_week)!.add(row.body_part);
-      }
-      setRoutines(map);
-    });
-  }, [db]);
+        setRoutines(map);
+      });
+    }, [db])
+  );
 
   const assignedCounts = useMemo(() => {
     const counts: Record<number, number> = {};
@@ -157,18 +160,18 @@ export default function RoutineTab() {
                 <Pressable
                   key={group}
                   onPress={() => toggleBodyPart(selectedDay, group)}
-                  className="w-1/2 p-1"
+                  className="w-1/2 p-2"
                   aria-label={`Toggle ${group}`}
                   accessibilityState={{ selected: state === 'selected' }}
                   accessibilityRole="switch"
                 >
                   <View
-                    className={`px-3 py-2.5 rounded-full items-center justify-center flex-row gap-1.5 ${
+                    className={`h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5 ${
                       state === 'selected'
                         ? 'bg-primary border border-primary'
                         : state === 'covered'
                           ? 'bg-primary/15 border border-primary/25'
-                          : 'bg-muted/50 border border-border active:bg-muted'
+                          : 'bg-secondary border border-border active:bg-secondary/80'
                     }`}
                   >
                     {state === 'covered' && (
