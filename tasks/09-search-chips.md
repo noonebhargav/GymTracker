@@ -1,6 +1,6 @@
 # Phase 9: Search Bar & Chip Components
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 

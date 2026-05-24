@@ -217,7 +217,7 @@ export default function ExploreIndex() {
   return (
     <View className="flex-1 bg-background">
       <View className="px-4 pt-2 pb-2">
-        <View className="flex-row items-center bg-muted rounded-lg px-3 h-10">
+        <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
           <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
           <TextInput
             className="flex-1 text-sm text-foreground"

@@ -166,12 +166,12 @@ export default function RoutineTab() {
                   accessibilityRole="switch"
                 >
                   <View
-                    className={`px-3 py-2.5 rounded-full items-center justify-center flex-row gap-1.5 ${
+                    className={`h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5 ${
                       state === 'selected'
                         ? 'bg-primary border border-primary'
                         : state === 'covered'
                           ? 'bg-primary/15 border border-primary/25'
-                          : 'bg-muted/50 border border-border active:bg-muted'
+                          : 'bg-secondary border border-border active:bg-secondary/80'
                     }`}
                   >
                     {state === 'covered' && (

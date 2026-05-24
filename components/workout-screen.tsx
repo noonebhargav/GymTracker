@@ -295,7 +295,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     <View className="flex-1 bg-background">
       {/* Search bar — on top */}
       <View className="px-4 pt-2 pb-2">
-        <View className="flex-row items-center bg-muted rounded-lg px-3 h-10">
+        <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
           <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
           <TextInput
             className="flex-1 text-sm text-foreground"
@@ -335,10 +335,10 @@ export function WorkoutScreen({ tab }: { tab: string }) {
               <Pressable
                 key={t.key}
                 onPress={() => navigateToTab(t.key)}
-                className={`h-10 px-3 items-center justify-center rounded-full ${
+                className={`h-9 px-4 items-center justify-center rounded-full ${
                   active
                     ? 'bg-primary border border-primary'
-                    : 'bg-muted border border-border active:bg-muted/80'
+                    : 'bg-secondary text-muted-foreground active:bg-secondary/80'
                 }`}
                 aria-label={`Filter by ${t.label}`}
               >
