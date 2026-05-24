@@ -230,7 +230,8 @@ export default function SettingsTab() {
         setWeightUnit(resolvedUnit);
         setQueueEnabled((queue ?? DEFAULTS.queue_enabled) === 'true');
         setTheme(thm ?? 'system');
-        setAccentColor(accent ?? 'lime');
+        const validAccent = ACCENT_COLORS.some((c) => c.key === accent) ? accent! : 'lime';
+        setAccentColor(validAccent);
       } catch {
         setError(true);
       } finally {
@@ -273,8 +274,7 @@ export default function SettingsTab() {
 
       Uniwind.setTheme('system');
       InteractionManager.runAfterInteractions(() => {
-        const effective = (Uniwind.currentTheme ?? 'light') as 'light' | 'dark';
-        applyAccentColor('lime', effective);
+        applyAccentColor('lime');
         setAccent(undefined);
       });
 
@@ -307,7 +307,8 @@ export default function SettingsTab() {
 
   const isKgRuler = weightUnit === 'kg';
   const weightMax = isKgRuler ? 300 : 600;
-  const weightStep = isKgRuler ? 2.5 : 5;
+  const weightStep = 2.5;
+  const weightLabelEvery = 4;
   const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
 
   return (
@@ -400,10 +401,7 @@ export default function SettingsTab() {
           const key = v as 'light' | 'dark' | 'system';
           Uniwind.setTheme(key);
           InteractionManager.runAfterInteractions(() => {
-            const effective = key === 'system'
-              ? (Uniwind.currentTheme as 'light' | 'dark')
-              : key;
-            applyAccentColor(accentColor, effective);
+            applyAccentColor(accentColor);
           });
         }}
       />
@@ -413,10 +411,7 @@ export default function SettingsTab() {
           setAccentColor(key);
           persistStr('accent_color', key);
           InteractionManager.runAfterInteractions(() => {
-            const effective = (theme === 'system'
-              ? Uniwind.currentTheme
-              : theme) as 'light' | 'dark';
-            applyAccentColor(key, effective);
+            applyAccentColor(key);
           });
           const color = ACCENT_COLORS.find((c) => c.key === key);
           setAccent(color ? color.swatchHex : undefined);
@@ -480,6 +475,7 @@ export default function SettingsTab() {
         min={0}
         max={rulerOpen === 'weight' ? weightMax : 50}
         step={rulerOpen === 'weight' ? weightStep : 1}
+        labelEvery={rulerOpen === 'weight' ? weightLabelEvery : 5}
         unit={rulerOpen === 'weight' ? weightUnit : 'reps'}
         quickSteps={rulerOpen === 'weight' ? weightQuickSteps : [-5, -1, 1, 5]}
         onDone={() => setRulerOpen(null)}

@@ -22,6 +22,7 @@ import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
+import { useAccentHex } from '@/lib/accent-store';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -63,6 +64,7 @@ export default function ExerciseSetEditor() {
   const [isDone, setIsDone] = useState(false);
   const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
   const [prWeight, setPrWeight] = useState<number | null>(null);
+  const accentHex = useAccentHex() ?? '#d8fe3d';
 
   const today = todayDateStr();
   const isKg = weightUnit === 'kg';
@@ -167,8 +169,9 @@ export default function ExerciseSetEditor() {
       await replaceWorkoutSets(db, today, exercise.id, inputs);
 
       const sessionMax = Math.max(...setValues.map((s) => s.weight));
+      const sessionMaxKg = toKg(sessionMax, weightUnit);
       const historicalMax = await getExercisePRHistory(db, exercise.id, today);
-      if (sessionMax > historicalMax) {
+      if (sessionMaxKg > historicalMax) {
         setPrWeight(sessionMax);
       }
 
@@ -193,7 +196,8 @@ export default function ExerciseSetEditor() {
 
   const unit = isKg ? 'kg' : 'lbs';
   const weightMax = isKg ? 300 : 600;
-  const weightStep = isKg ? 2.5 : 5;
+  const weightStep = 2.5;
+  const weightLabelEvery = 4;
   const weightQuickSteps = isKg ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
 
   if (!loaded) {
@@ -268,7 +272,7 @@ export default function ExerciseSetEditor() {
                   className="flex-1 bg-secondary rounded-xl p-2 items-center"
                   style={{
                     borderWidth: 2,
-                    borderColor: activeSetIdx === idx && activeField === 'weight' ? '#d8fe3d' : 'transparent',
+                    borderColor: activeSetIdx === idx && activeField === 'weight' ? accentHex : 'transparent',
                   }}
                   aria-label={`Set ${idx + 1} weight: ${s.weight} ${unit}`}
                 >
@@ -287,7 +291,7 @@ export default function ExerciseSetEditor() {
                   className="flex-1 bg-secondary rounded-xl p-2 items-center"
                   style={{
                     borderWidth: 2,
-                    borderColor: activeSetIdx === idx && activeField === 'reps' ? '#d8fe3d' : 'transparent',
+                    borderColor: activeSetIdx === idx && activeField === 'reps' ? accentHex : 'transparent',
                   }}
                   aria-label={`Set ${idx + 1} reps: ${s.reps}`}
                 >
@@ -367,6 +371,7 @@ export default function ExerciseSetEditor() {
           min={0}
           max={rulerWheel.field === 'weight' ? weightMax : 50}
           step={rulerWheel.field === 'weight' ? weightStep : 1}
+          labelEvery={rulerWheel.field === 'weight' ? weightLabelEvery : 5}
           unit={rulerWheel.field === 'weight' ? unit : 'reps'}
           quickSteps={rulerWheel.field === 'weight' ? weightQuickSteps : [-5, -1, 1, 5]}
           onDone={() => setRulerWheel(null)}

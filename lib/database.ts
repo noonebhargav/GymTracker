@@ -9,7 +9,7 @@ export function displayWeight(kg: number, unit: 'lbs' | 'kg'): number {
 }
 
 export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
-  if (fromUnit === 'kg') return Math.round(value / 2.5) * 2.5;
+  if (fromUnit === 'kg') return value;
   return Math.round((value / LBS_FACTOR) / 2.5) * 2.5;
 }
 
@@ -559,17 +559,34 @@ export async function getWindowPRs(
   windowEnd: string
 ): Promise<WindowPRRow[]> {
   return db.getAllAsync<WindowPRRow>(
-    `SELECT wl.exercise_id, e.name AS exercise_name,
-       MAX(wl.weight) AS max_weight, wl.date_logged AS best_date
-     FROM workout_logs wl
-     JOIN exercises e ON wl.exercise_id = e.id
-     WHERE wl.date_logged >= ? AND wl.date_logged <= ?
-       AND wl.weight > COALESCE((
-         SELECT MAX(weight) FROM workout_logs
-         WHERE exercise_id = wl.exercise_id AND date_logged < ?
-       ), 0)
-     GROUP BY wl.exercise_id
-     ORDER BY wl.date_logged DESC`,
+    `SELECT
+       sub.exercise_id,
+       e.name AS exercise_name,
+       sub.max_weight,
+       (
+         SELECT wl2.date_logged
+         FROM workout_logs wl2
+         WHERE wl2.exercise_id = sub.exercise_id
+           AND wl2.weight = sub.max_weight
+           AND wl2.date_logged >= ?
+           AND wl2.date_logged <= ?
+         ORDER BY wl2.date_logged DESC
+         LIMIT 1
+       ) AS best_date
+     FROM (
+       SELECT wl.exercise_id, MAX(wl.weight) AS max_weight
+       FROM workout_logs wl
+       WHERE wl.date_logged >= ? AND wl.date_logged <= ?
+         AND wl.weight > COALESCE((
+           SELECT MAX(weight) FROM workout_logs
+           WHERE exercise_id = wl.exercise_id AND date_logged < ?
+         ), 0)
+       GROUP BY wl.exercise_id
+     ) sub
+     JOIN exercises e ON sub.exercise_id = e.id
+     ORDER BY best_date DESC`,
+    windowStart,
+    windowEnd,
     windowStart,
     windowEnd,
     windowStart

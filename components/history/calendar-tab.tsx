@@ -1,7 +1,7 @@
 import { View, Pressable, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import {
   getMonthlyAggregates,
@@ -78,10 +78,6 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
     const aggs = await getMonthlyAggregates(db, start, end);
     setAggregates(aggs);
   }, [db, year, month]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

@@ -60,7 +60,7 @@ const LIME_DEFAULTS = {
   '--color-sidebar-primary-foreground': '#0a0b0d',
 };
 
-export function applyAccentColor(key: string | null, _theme: 'light' | 'dark') {
+export function applyAccentColor(key: string | null) {
   const color = ACCENT_COLORS.find((c) => c.key === key);
 
   if (!color) {

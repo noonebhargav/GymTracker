@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react';
+import { useAccentHex } from '@/lib/accent-store';
 import {
   View,
   ScrollView,
@@ -20,6 +21,7 @@ interface RulerWheelProps {
   min?: number;
   max?: number;
   step?: number;
+  labelEvery?: number;
   unit: string;
   quickSteps?: number[];
   onDone: () => void;
@@ -36,6 +38,7 @@ export function RulerWheel({
   min = 0,
   max = 500,
   step = 5,
+  labelEvery = 5,
   unit,
   quickSteps,
   onDone,
@@ -47,6 +50,7 @@ export function RulerWheel({
   const steps = Math.round((max - min) / step);
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
+  const accentHex = useAccentHex() ?? '#d8fe3d';
 
   const valueToOffset = useCallback(
     (v: number) => ((v - min) / step) * TICK_WIDTH,
@@ -138,7 +142,7 @@ export function RulerWheel({
             contentContainerStyle={{ paddingHorizontal: padding }}
           >
             {Array.from({ length: steps + 1 }, (_, i) => {
-              const isMajor = i % 5 === 0;
+              const isMajor = i % labelEvery === 0;
               return (
                 <View
                   key={i}
@@ -180,7 +184,7 @@ export function RulerWheel({
               bottom: 0,
               left: screenWidth / 2 - 1,
               width: 2,
-              backgroundColor: '#d8fe3d',
+              backgroundColor: accentHex,
             }}
           />
         </View>

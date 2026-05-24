@@ -29,7 +29,7 @@ function AccentLoader() {
         Uniwind.setTheme(thm);
       }
       const effective = (thm === 'system' ? (theme as string) : thm) || theme;
-      applyAccentColor(accent, (effective ?? 'light') as 'light' | 'dark');
+      applyAccentColor(accent);
       const color = ACCENT_COLORS.find((c) => c.key === accent);
       setAccent(color ? color.swatchHex : undefined);
     })();

@@ -37,7 +37,7 @@ const DEFAULTS: Record<string, string> = {
   default_weight: '20',
   default_reps: '10',
   weight_unit: 'lbs',
-  queue_enabled: 'true',
+  queue_enabled: 'false',
 };
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
@@ -84,7 +84,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   const [recentExercises, setRecentExercises] = useState<ExerciseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  const [queueEnabled, setQueueEnabled] = useState(true);
+  const [queueEnabled, setQueueEnabled] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [streak, setStreak] = useState(0);
 

@@ -2,7 +2,7 @@ import { View, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Trophy } from 'lucide-react-native';
 import {
@@ -75,7 +75,6 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
     setPrRows(prs);
   }, [db, windowStartDate, windowEndDate, heatmapStart]);
 
-  useEffect(() => { load(); }, [load]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // --- Chart data ---

@@ -1,6 +1,6 @@
 import { getExerciseById, type ExerciseDetail } from '@/lib/database';
 import { getExerciseGif } from '@/lib/exercise-assets';
-import { capitalizeWords } from '@/lib/utils';
+import { capitalizeWords, parseJsonArray } from '@/lib/utils';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -110,11 +110,3 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function parseJsonArray(json: string): string[] {
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
