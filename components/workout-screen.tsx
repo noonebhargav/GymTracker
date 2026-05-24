@@ -4,7 +4,6 @@ import {
   ScrollView,
   TextInput,
   FlatList,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
@@ -19,14 +18,12 @@ import {
   type ExerciseRow,
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
-import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
+import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Check,
-  ChevronRight,
   Search,
   X,
 } from 'lucide-react-native';
@@ -69,51 +66,15 @@ const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
   selectedTab: string;
 }) {
   const g = toGoldStandardGroup(item.body_part, item.target);
-  const imageSource = getExerciseImage(item.assetId);
   return (
-    <Pressable
-      onPress={() =>
-        router.push(
-          `/workout/${encodeURIComponent(selectedTab)}/${item.id}`
-        )
-      }
-      className="active:bg-muted"
-    >
-      <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
-        {imageSource ? (
-          <Image
-            source={imageSource}
-            className="size-12 rounded-md bg-muted"
-            resizeMode="cover"
-            accessibilityLabel={capitalizeWords(item.name)}
-          />
-        ) : (
-          <View className="size-12 rounded-md bg-muted items-center justify-center">
-            <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
-          </View>
-        )}
-        <View className="flex-1 min-w-0">
-          <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-            {capitalizeWords(item.name)}
-          </Text>
-          <Text className="text-xs text-muted-foreground mt-0.5">
-            {capitalizeWords(item.equipment) || 'N/A'}
-            {g ? ` · ${g}` : ''}
-          </Text>
-        </View>
-        {isDone && (
-          <View className="flex-row items-center gap-1 bg-primary/20 border border-primary/40 rounded-full px-2.5 py-1">
-            <Icon as={Check} className="size-3 text-primary" aria-hidden={true} />
-            <Text className="text-xs font-semibold text-primary">Done</Text>
-          </View>
-        )}
-        <Icon
-          as={ChevronRight}
-          className="size-4 text-muted-foreground"
-          aria-hidden={true}
-        />
-      </View>
-    </Pressable>
+    <ExerciseRowComponent
+      name={item.name}
+      equipment={item.equipment}
+      group={g}
+      assetId={item.assetId}
+      right={isDone ? <DoneBadge /> : <RowChevron />}
+      onPress={() => router.push(`/workout/${encodeURIComponent(selectedTab)}/${item.id}`)}
+    />
   );
 });
 

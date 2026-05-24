@@ -11,9 +11,9 @@ import {
   OTHER_EQUIPMENT_LABEL,
   toConsolidatedEquipment,
 } from '@/lib/exercise-groups';
-import { getExerciseImage } from '@/lib/exercise-assets';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import {
   ArrowLeft,
@@ -29,7 +29,6 @@ import { useUniwind } from 'uniwind';
 import { THEME } from '@/lib/theme';
 import {
   FlatList,
-  Image,
   Pressable,
   ScrollView,
   TextInput,
@@ -115,38 +114,16 @@ const ExerciseListItem = memo(function ExerciseListItem({
 }: {
   item: ExerciseRow;
 }) {
-  const imageSource = getExerciseImage(item.assetId);
-  const handlePress = () => {
-    const g = toGoldStandardGroup(item.body_part, item.target);
-    router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`);
-  };
-
+  const g = toGoldStandardGroup(item.body_part, item.target);
   return (
-    <Pressable onPress={handlePress} className="active:bg-muted">
-      <View className="flex-row items-center px-4 py-3 border-b border-border gap-3">
-        {imageSource ? (
-          <Image
-            source={imageSource}
-            className="size-12 rounded-md bg-muted"
-            resizeMode="cover"
-            accessibilityLabel={capitalizeWords(item.name)}
-          />
-        ) : (
-          <View className="size-12 rounded-md bg-muted items-center justify-center">
-            <Icon as={Search} className="size-5 text-muted-foreground" aria-hidden={true} />
-          </View>
-        )}
-        <View className="flex-1 min-w-0">
-          <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-            {capitalizeWords(item.name)}
-          </Text>
-          <Text className="text-xs text-muted-foreground mt-0.5">
-            {capitalizeWords(item.equipment) || 'N/A'}
-          </Text>
-        </View>
-        <Icon as={ChevronRight} className="size-4 text-muted-foreground" aria-hidden={true} />
-      </View>
-    </Pressable>
+    <ExerciseRowComponent
+      name={item.name}
+      equipment={item.equipment}
+      group={g}
+      assetId={item.assetId}
+      right={<RowChevron />}
+      onPress={() => router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`)}
+    />
   );
 });
 

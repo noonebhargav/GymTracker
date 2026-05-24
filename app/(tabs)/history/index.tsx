@@ -388,7 +388,7 @@ export default function HistoryTab() {
           {monthWeeks.map((week) => (
             <View
               key={week.monday}
-              className={`rounded-xl p-4 ${
+              className={`rounded-xl p-4 bg-card ${
                 week.hasData
                   ? 'border border-border'
                   : 'border border-dashed border-border'

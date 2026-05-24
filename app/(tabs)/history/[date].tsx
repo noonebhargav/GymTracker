@@ -7,7 +7,7 @@ import { Icon } from '@/components/ui/icon';
 import { getDayWorkoutDetail, getSetting, displayWeight, type DayWorkoutDetailRow } from '@/lib/database';
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
-import { ArrowLeft, Search } from 'lucide-react-native';
+import { ArrowLeft, Dumbbell } from 'lucide-react-native';
 
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -161,13 +161,13 @@ export default function HistoryDateDetail() {
                 {imageSource ? (
                   <Image
                     source={imageSource}
-                    className="size-10 rounded-md bg-muted"
+                    className="w-[52px] h-[52px] rounded-[12px] bg-secondary"
                     resizeMode="cover"
                     accessibilityLabel={capitalizeWords(group.name)}
                   />
                 ) : (
-                  <View className="size-10 rounded-md bg-muted items-center justify-center">
-                    <Icon as={Search} className="size-4 text-muted-foreground" aria-hidden={true} />
+                  <View className="w-[52px] h-[52px] rounded-[12px] bg-secondary items-center justify-center">
+                    <Icon as={Dumbbell} className="size-6 text-muted-foreground" aria-hidden={true} />
                   </View>
                 )}
                 <View className="flex-1 min-w-0">
