@@ -1,30 +1,18 @@
-import {
-  getAllExercises,
-  type ExerciseRow,
-} from '@/lib/database';
+import { getAllExercises, type ExerciseRow } from '@/lib/database';
 import {
   GOLD_STANDARD_GROUPS,
   toGoldStandardGroup,
   formatEquipmentLabel,
-  PRIMARY_EQUIPMENT,
   DISPLAY_EQUIPMENT,
-  OTHER_EQUIPMENT_LABEL,
   toConsolidatedEquipment,
 } from '@/lib/exercise-groups';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  X,
-} from 'lucide-react-native';
-import { capitalizeWords } from '@/lib/utils';
+import { ArrowLeft, Search, X } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUniwind } from 'uniwind';
 import { THEME } from '@/lib/theme';
 import {
@@ -36,80 +24,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-function CollapsibleSection({
-  title,
-  open,
-  onToggle,
-  count,
-  children,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  count?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <View>
-      <Pressable
-        onPress={onToggle}
-        className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted"
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        aria-expanded={open}
-      >
-        <Text className="text-base font-semibold text-foreground flex-1" numberOfLines={1}>
-          {title}
-        </Text>
-        {count !== undefined && (
-          <Text className="text-sm text-muted-foreground mr-3 min-w-6 text-right">
-            {count}
-          </Text>
-        )}
-        <Icon
-          as={open ? ChevronDown : ChevronRight}
-          className="size-5 text-muted-foreground"
-          aria-hidden={true}
-        />
-      </Pressable>
-      {open && children}
-    </View>
-  );
-}
-
-const CategoryGrid = memo(function CategoryGrid({
-  items,
-  columns = 2,
-}: {
-  items: { label: string; count: number; onPress: () => void }[];
-  columns?: number;
-}) {
-  return (
-    <View className="flex-row flex-wrap px-2 py-2">
-      {items.map((item) => (
-        <Pressable
-          key={item.label}
-          onPress={item.onPress}
-          style={{ width: `${100 / columns}%` }}
-          className="p-2"
-          aria-label={`${item.label}, ${item.count} exercises`}
-          accessibilityRole="button"
-        >
-          <View className="bg-card border border-border rounded-lg p-3 items-start active:bg-muted">
-            <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-              {item.label}
-            </Text>
-            <Text className="text-xs text-muted-foreground mt-1">
-              {item.count} exercises
-            </Text>
-          </View>
-        </Pressable>
-      ))}
-    </View>
-  );
-});
-
-
 export default function ExploreIndex() {
   const db = useSQLiteContext();
   const { theme } = useUniwind();
@@ -117,8 +31,6 @@ export default function ExploreIndex() {
     theme === 'dark' ? THEME.dark.mutedForeground : THEME.light.mutedForeground;
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bodyPartsOpen, setBodyPartsOpen] = useState(true);
-  const [equipmentOpen, setEquipmentOpen] = useState(true);
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
@@ -188,6 +100,7 @@ export default function ExploreIndex() {
 
   return (
     <View className="flex-1 bg-background">
+      {/* Search bar */}
       <View className="px-4 pt-2 pb-2">
         <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
           <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
@@ -204,11 +117,7 @@ export default function ExploreIndex() {
             aria-label="Search exercises"
           />
           {searchText.length > 0 && (
-            <Pressable
-              onPress={() => setSearchText('')}
-              className="p-3"
-              aria-label="Clear search"
-            >
+            <Pressable onPress={() => setSearchText('')} className="p-3" aria-label="Clear search">
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
             </Pressable>
           )}
@@ -226,14 +135,14 @@ export default function ExploreIndex() {
               <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
             </Pressable>
             <Text className="text-base font-semibold text-foreground flex-1">
-              {searchResults.length} results for {'\u201C'}{searchText}{'\u201D'}
+              {searchResults.length} results for {'“'}{searchText}{'”'}
             </Text>
           </View>
           {searchResults.length === 0 ? (
             <View className="flex-1 items-center justify-center px-8 py-20">
               <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
               <Text className="text-base text-muted-foreground text-center">
-                No exercises found for {'\u201C'}{searchText}{'\u201D'}
+                No exercises found for {'“'}{searchText}{'”'}
               </Text>
             </View>
           ) : (
@@ -250,40 +159,58 @@ export default function ExploreIndex() {
           <ActivityIndicator />
         </View>
       ) : (
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <CollapsibleSection
-            title="Body Parts"
-            open={bodyPartsOpen}
-            onToggle={() => setBodyPartsOpen(!bodyPartsOpen)}
-            count={GOLD_STANDARD_GROUPS.length}
-          >
-            <CategoryGrid
-              columns={2}
-              items={GOLD_STANDARD_GROUPS.map((g) => ({
-                label: g,
-                count: groupCounts[g] ?? 0,
-                onPress: () => router.push(`/explore/${g.toLowerCase()}`),
-              }))}
-            />
-          </CollapsibleSection>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* Body Parts */}
+          <View className="flex-row items-baseline justify-between px-5 pt-4 pb-3">
+            <Text className="text-lg font-bold text-foreground">Body parts</Text>
+            <Text className="text-xs text-muted-foreground">{GOLD_STANDARD_GROUPS.length}</Text>
+          </View>
+          <View className="flex-row flex-wrap px-3">
+            {GOLD_STANDARD_GROUPS.map((g) => (
+              <Pressable
+                key={g}
+                onPress={() => router.push(`/explore/${g.toLowerCase()}`)}
+                style={{ width: '50%' }}
+                className="p-1.5"
+                aria-label={`${g}, ${groupCounts[g] ?? 0} exercises`}
+                accessibilityRole="button"
+              >
+                <View className="bg-card border border-border rounded-[14px] p-4 active:opacity-70">
+                  <Text className="text-base font-semibold text-foreground">{g}</Text>
+                  <Text className="text-xs text-muted-foreground mt-0.5">
+                    {groupCounts[g] ?? 0} exercises
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
 
-          <CollapsibleSection
-            title="Equipment"
-            open={equipmentOpen}
-            onToggle={() => setEquipmentOpen(!equipmentOpen)}
-            count={equipmentTypeCount}
-          >
-            <CategoryGrid
-              columns={2}
-              items={DISPLAY_EQUIPMENT.filter(
-                (t) => (equipmentCounts[t] ?? 0) > 0
-              ).map((t) => ({
-                label: formatEquipmentLabel(t),
-                count: equipmentCounts[t] ?? 0,
-                onPress: () => router.push(`/explore/${t.toLowerCase()}`),
-              }))}
-            />
-          </CollapsibleSection>
+          {/* Equipment */}
+          <View className="flex-row items-baseline justify-between px-5 pt-5 pb-3">
+            <Text className="text-lg font-bold text-foreground">Equipment</Text>
+            <Text className="text-xs text-muted-foreground">{equipmentTypeCount}</Text>
+          </View>
+          <View className="flex-row flex-wrap px-3">
+            {DISPLAY_EQUIPMENT.filter((t) => (equipmentCounts[t] ?? 0) > 0).map((t) => (
+              <Pressable
+                key={t}
+                onPress={() => router.push(`/explore/${t.toLowerCase()}`)}
+                style={{ width: '50%' }}
+                className="p-1.5"
+                aria-label={`${formatEquipmentLabel(t)}, ${equipmentCounts[t] ?? 0} exercises`}
+                accessibilityRole="button"
+              >
+                <View className="bg-card border border-border rounded-[14px] p-3.5 active:opacity-70">
+                  <Text className="text-[13px] font-semibold text-foreground" numberOfLines={1}>
+                    {formatEquipmentLabel(t)}
+                  </Text>
+                  <Text className="text-[11px] text-muted-foreground mt-0.5">
+                    {equipmentCounts[t] ?? 0} exercises
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
         </ScrollView>
       )}
     </View>
