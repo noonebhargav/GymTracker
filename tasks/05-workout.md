@@ -28,3 +28,11 @@ Log daily exercises — sets, weight, reps. Auto-detects today's body parts from
 - **Tab bar**: Custom TabBar in `components/navigation/tab-bar.tsx` — `!isFocused` guard preserved
 - **Performance**: Removed `JSON.stringify` dirty check, Reanimated CollapsibleContent, expandedExercise state from FlatList
 - **Refresh**: `useFocusEffect` reloads `routines` + `completedToday` on tab switch
+
+## Redesign Follow-up
+
+See [Phase 12: Set Editor with RulerWheel](./12-set-editor-rulerwheel.md) for redesign changes:
+- Replace stepper buttons with RulerWheel bottom-sheet picker
+- Add "Today's session" done summary card
+- Add workout streak counter
+- Add PR (personal record) tracking per exercise

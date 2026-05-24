@@ -19,3 +19,11 @@ Calendar view of past workouts plus side-by-side weekly summaries.
 ## Technical Notes
 - Reads from workout_logs and routines tables
 - Aggregate queries for weekly summaries
+
+## Redesign Follow-up
+
+See [Phase 13: History Insights](./13-history-insights.md) for redesign changes:
+- Add third "Insights" sub-tab with avg weight chart and body part heatmap
+- Add recent PRs list
+- Enhance calendar with variable-size workout dot indicators
+- Enhance weekly summaries with 4-cell stat grid format

@@ -20,3 +20,10 @@ Browse/search all exercises by body part or equipment. Two collapsible sections 
 - Uses 8 gold standard body part groups
 - Images from assets/exercises/images/
 - Exercise data from SQLite exercises table
+
+## Redesign Follow-up
+
+See [Phase 14: Explore Tab Restyling](./14-explore.md) for redesign changes:
+- Replace collapsible sections with always-visible 2-column grids
+- Add section headers with counts
+- Enhance exercise detail with hero illustration and numbered instructions

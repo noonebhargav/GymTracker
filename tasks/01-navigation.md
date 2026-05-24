@@ -18,3 +18,7 @@ Replace the current Stack navigator with a 5-tab bottom navigator. Each tab show
 - Tab bar component from `react-native-reusables`
 - Icons from `lucide-react-native`
 - File-based routing via Expo Router
+
+## Redesign Follow-up
+
+See [Phase 11: Bottom Tab Bar Restyling](./11-tab-bar.md) for redesign changes to the tab bar styling.

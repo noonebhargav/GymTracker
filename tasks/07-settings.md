@@ -24,3 +24,10 @@ App preferences — theme, queue mode, GIF toggle.
 - Accent colors via Uniwind.updateCSSVariables()
 - Shared accent store for instant tab bar updates
 - Queue mode affects Workout tab behavior (Phase 5)
+
+## Redesign Follow-up
+
+See [Phase 15: Settings Tab Restructure](./15-settings.md) for redesign changes:
+- Add About section with Export workout data row
+- Replace weight/reps steppers with RulerWheel picker
+- Restyle reset button (danger-soft bg, no AlertDialog)
