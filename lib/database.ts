@@ -265,7 +265,7 @@ export async function resetAllData(db: SQLiteDatabase): Promise<void> {
       "INSERT INTO settings (key, value) VALUES ('theme', 'system')"
     );
     await db.runAsync(
-      "INSERT INTO settings (key, value) VALUES ('accent_color', 'neutral')"
+      "INSERT INTO settings (key, value) VALUES ('accent_color', 'lime')"
     );
   });
 }

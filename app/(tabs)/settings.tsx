@@ -201,7 +201,7 @@ export default function SettingsTab() {
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [queueEnabled, setQueueEnabled] = useState(false);
   const [theme, setTheme] = useState<string>('system');
-  const [accentColor, setAccentColor] = useState<string>('neutral');
+  const [accentColor, setAccentColor] = useState<string>('lime');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -228,7 +228,7 @@ export default function SettingsTab() {
         setWeightUnit(resolvedUnit);
         setQueueEnabled((queue ?? DEFAULTS.queue_enabled) === 'true');
         setTheme(thm ?? 'system');
-        setAccentColor(accent ?? 'neutral');
+        setAccentColor(accent ?? 'lime');
       } catch {
         setError(true);
       } finally {
@@ -267,12 +267,12 @@ export default function SettingsTab() {
       setWeightUnit(unit);
       setQueueEnabled(false);
       setTheme('system');
-      setAccentColor('neutral');
+      setAccentColor('lime');
 
       Uniwind.setTheme('system');
       InteractionManager.runAfterInteractions(() => {
         const effective = (Uniwind.currentTheme ?? 'light') as 'light' | 'dark';
-        applyAccentColor('neutral', effective);
+        applyAccentColor('lime', effective);
         setAccent(undefined);
       });
 
@@ -419,12 +419,8 @@ export default function SettingsTab() {
               : theme) as 'light' | 'dark';
             applyAccentColor(key, effective);
           });
-          if (key && key !== 'neutral') {
-            const color = ACCENT_COLORS.find((c) => c.key === key);
-            setAccent(color ? (theme === 'dark' ? color.dark.primaryHex : color.light.primaryHex) : undefined);
-          } else {
-            setAccent(undefined);
-          }
+          const color = ACCENT_COLORS.find((c) => c.key === key);
+          setAccent(color ? color.swatchHex : undefined);
         }}
       />
 
