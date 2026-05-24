@@ -58,14 +58,16 @@ export function RulerWheel({
     scrollRef.current?.scrollTo({ x: offset, animated: false });
   }, []);
 
-  const onScrollEnd = useCallback(
+  const onScrollEvent = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
       const newVal = clamp(min + idx * step, min, max);
-      onChange(newVal);
+      if (newVal !== value) {
+        onChange(newVal);
+      }
     },
-    [min, max, step, onChange]
+    [min, max, step, onChange, value]
   );
 
   const applyQuickStep = useCallback(
@@ -129,7 +131,10 @@ export function RulerWheel({
             showsHorizontalScrollIndicator={false}
             snapToInterval={TICK_WIDTH}
             decelerationRate="fast"
-            onMomentumScrollEnd={onScrollEnd}
+            onScroll={onScrollEvent}
+            scrollEventThrottle={16}
+            onScrollEndDrag={onScrollEvent}
+            onMomentumScrollEnd={onScrollEvent}
             contentContainerStyle={{ paddingHorizontal: padding }}
           >
             {Array.from({ length: steps + 1 }, (_, i) => {
@@ -149,8 +154,15 @@ export function RulerWheel({
                   />
                   {isMajor && (
                     <Text
-                      style={{ fontSize: 9, color: '#6c6f78', marginTop: 2 }}
-                      numberOfLines={1}
+                      style={{
+                        position: 'absolute',
+                        top: 32,
+                        width: 36,
+                        left: -12,
+                        fontSize: 9,
+                        color: '#6c6f78',
+                        textAlign: 'center',
+                      }}
                     >
                       {min + i * step}
                     </Text>

@@ -1,6 +1,6 @@
 # Phase 10: Exercise Rows & Cards
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 
