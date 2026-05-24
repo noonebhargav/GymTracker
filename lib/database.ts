@@ -525,3 +525,53 @@ export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
   }
   return streak;
 }
+
+export type BodyPartAvgRow = {
+  body_part: string;
+  avg_weight: number;
+};
+
+export async function getBodyPartAvgWeights(
+  db: SQLiteDatabase,
+  startDate: string,
+  endDate: string
+): Promise<BodyPartAvgRow[]> {
+  return db.getAllAsync<BodyPartAvgRow>(
+    `SELECT body_part, AVG(CAST(weight AS REAL)) as avg_weight
+     FROM workout_logs
+     WHERE date_logged >= ? AND date_logged <= ?
+     GROUP BY body_part`,
+    startDate,
+    endDate
+  );
+}
+
+export type WindowPRRow = {
+  exercise_id: string;
+  exercise_name: string;
+  max_weight: number;
+  best_date: string;
+};
+
+export async function getWindowPRs(
+  db: SQLiteDatabase,
+  windowStart: string,
+  windowEnd: string
+): Promise<WindowPRRow[]> {
+  return db.getAllAsync<WindowPRRow>(
+    `SELECT wl.exercise_id, e.name AS exercise_name,
+       MAX(wl.weight) AS max_weight, wl.date_logged AS best_date
+     FROM workout_logs wl
+     JOIN exercises e ON wl.exercise_id = e.id
+     WHERE wl.date_logged >= ? AND wl.date_logged <= ?
+       AND wl.weight > COALESCE((
+         SELECT MAX(weight) FROM workout_logs
+         WHERE exercise_id = wl.exercise_id AND date_logged < ?
+       ), 0)
+     GROUP BY wl.exercise_id
+     ORDER BY wl.date_logged DESC`,
+    windowStart,
+    windowEnd,
+    windowStart
+  );
+}
