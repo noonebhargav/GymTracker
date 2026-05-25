@@ -4,9 +4,15 @@ import type { ComponentProps } from 'react';
 import { Dumbbell, CalendarDays, Search, Clock, Settings } from 'lucide-react-native';
 import { TabBar } from '@/components/navigation/tab-bar';
 import { useAccentHex } from '@/lib/accent-store';
+import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 
 export default function TabLayout() {
   const accentPrimary = useAccentHex();
+  const { theme } = useUniwind();
+  const isDark = theme === 'dark';
+  const bg = isDark ? THEME.dark.background : THEME.light.background;
+  const fg = isDark ? THEME.dark.foreground : THEME.light.foreground;
 
   type TabBarProps = NonNullable<ComponentProps<typeof Tabs>['tabBar']> extends (props: infer P) => unknown ? P : never;
   const renderTabBar = useCallback(
@@ -18,6 +24,15 @@ export default function TabLayout() {
     <Tabs
       initialRouteName="workout"
       tabBar={renderTabBar}
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: bg,
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? THEME.dark.border : THEME.light.border,
+        } as any,
+        headerTintColor: fg,
+        headerShadowVisible: false,
+      }}
     >
       <Tabs.Screen
         name="workout"

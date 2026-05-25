@@ -1,19 +1,16 @@
 import '@/global.css';
 
 import { initAndSeedDatabase, getSetting } from '@/lib/database';
-import { NAV_THEME } from '@/lib/theme';
+import { NAV_THEME, THEME } from '@/lib/theme';
 import { applyAccentColor, ACCENT_COLORS } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
-import { ThemeProvider } from 'expo-router';
+import { ThemeProvider, Stack } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
-import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import { StatusBar } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useUniwind, Uniwind } from 'uniwind';
 import * as SystemUI from 'expo-system-ui';
-
-SystemUI.setBackgroundColorAsync('transparent');
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -41,16 +38,18 @@ function AccentLoader() {
 export default function RootLayout() {
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
+  const bgColor = isDark ? THEME.dark.background : THEME.light.background;
 
   useEffect(() => {
-    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
-  }, [isDark]);
+    SystemUI.setBackgroundColorAsync(bgColor);
+  }, [bgColor]);
 
   return (
-    <ThemeProvider value={NAV_THEME[theme ?? 'light']}>
+    <ThemeProvider value={NAV_THEME[isDark ? 'dark' : 'light']}>
       <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
         <AccentLoader />
-        <Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <Stack screenOptions={{ contentStyle: { backgroundColor: bgColor } }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
