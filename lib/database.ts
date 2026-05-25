@@ -528,6 +528,25 @@ export async function getExercisePRHistory(
   return row?.max_weight ?? 0;
 }
 
+// Returns the kg PR weight iff the exercise's all-time max was first achieved on `date`.
+// Lets the set editor re-derive the PR chip on every load so it persists across navigation.
+export async function getExercisePRForDate(
+  db: SQLiteDatabase,
+  exerciseId: string,
+  date: string
+): Promise<number | null> {
+  const row = await db.getFirstAsync<{ max_weight: number | null; first_date: string | null }>(
+    `SELECT MAX(CAST(weight AS REAL)) as max_weight, MIN(date_logged) as first_date
+     FROM workout_logs
+     WHERE exercise_id = ?
+       AND weight = (SELECT MAX(weight) FROM workout_logs WHERE exercise_id = ?)`,
+    exerciseId,
+    exerciseId
+  );
+  if (!row || row.max_weight == null || row.first_date !== date) return null;
+  return row.max_weight;
+}
+
 export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
   const logged = await db.getAllAsync<{ date_logged: string }>(
     `SELECT DISTINCT date_logged FROM workout_logs`

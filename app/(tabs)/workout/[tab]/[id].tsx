@@ -12,7 +12,7 @@ import {
   replaceWorkoutSets,
   deleteWorkoutSets,
   getWorkoutLogsForToday,
-  getExercisePRHistory,
+  getExercisePRForDate,
   displayWeight,
   toKg,
   type ExerciseDetail,
@@ -97,13 +97,17 @@ export default function ExerciseSetEditor() {
       setIsDone(done);
 
       if (done) {
-        getWorkoutSetsForDate(db, today, exerciseId).then((todaySets) => {
+        Promise.all([
+          getWorkoutSetsForDate(db, today, exerciseId),
+          getExercisePRForDate(db, exerciseId, today),
+        ]).then(([todaySets, prKg]) => {
           const sets: SetValues[] = todaySets.map((s) => ({
             weight: displayWeight(s.weight, resolvedUnit),
             reps: s.reps,
           }));
           setSetValues(sets.length ? sets : []);
           setInitialSetValues([...sets]);
+          setPrWeight(prKg !== null ? displayWeight(prKg, resolvedUnit) : null);
           setLoaded(true);
         });
       } else {
@@ -164,12 +168,8 @@ export default function ExerciseSetEditor() {
     try {
       await replaceWorkoutSets(db, today, exercise.id, inputs);
 
-      const sessionMax = Math.max(...setValues.map((s) => s.weight));
-      const sessionMaxKg = toKg(sessionMax, weightUnit);
-      const historicalMax = await getExercisePRHistory(db, exercise.id, today);
-      if (sessionMaxKg > historicalMax) {
-        setPrWeight(sessionMax);
-      }
+      const prKg = await getExercisePRForDate(db, exercise.id, today);
+      setPrWeight(prKg !== null ? displayWeight(prKg, weightUnit) : null);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setIsDone(true);
