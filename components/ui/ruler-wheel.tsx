@@ -5,11 +5,11 @@ import {
   ScrollView,
   Pressable,
   useWindowDimensions,
-  useColorScheme,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { useUniwind } from 'uniwind';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 
@@ -52,9 +52,9 @@ export function RulerWheel({
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
   const accentHex = useAccentHex() ?? '#d8fe3d';
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const minorTickColor = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
+  const { theme } = useUniwind();
+  const isDark = theme === 'dark';
+  const minorTickColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.3)';
   const majorTickColor = isDark ? '#9ca3af' : '#6c6f78';
   const labelColor = isDark ? '#9ca3af' : '#6c6f78';
 
@@ -73,9 +73,20 @@ export function RulerWheel({
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
       const newVal = clamp(min + idx * step, min, max);
-      if (newVal !== value) {
-        onChange(newVal);
-      }
+      if (newVal !== value) onChange(newVal);
+    },
+    [min, max, step, onChange, value]
+  );
+
+  const onScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const idx = Math.round(x / TICK_WIDTH);
+      const snappedX = idx * TICK_WIDTH;
+      // Force the scroll to land exactly on a tick
+      scrollRef.current?.scrollTo({ x: snappedX, animated: false });
+      const newVal = clamp(min + idx * step, min, max);
+      if (newVal !== value) onChange(newVal);
     },
     [min, max, step, onChange, value]
   );
@@ -143,8 +154,8 @@ export function RulerWheel({
             decelerationRate="fast"
             onScroll={onScrollEvent}
             scrollEventThrottle={16}
-            onScrollEndDrag={onScrollEvent}
-            onMomentumScrollEnd={onScrollEvent}
+            onScrollEndDrag={onScrollEnd}
+            onMomentumScrollEnd={onScrollEnd}
             contentContainerStyle={{ paddingHorizontal: padding }}
           >
             {Array.from({ length: steps + 1 }, (_, i) => {

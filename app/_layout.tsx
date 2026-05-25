@@ -4,7 +4,7 @@ import { initAndSeedDatabase, getSetting } from '@/lib/database';
 import { NAV_THEME } from '@/lib/theme';
 import { applyAccentColor, ACCENT_COLORS } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
-import { ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
