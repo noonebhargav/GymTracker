@@ -20,6 +20,7 @@ import {
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
+import { useToday, yesterdayDateStr } from '@/lib/use-today';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
@@ -42,17 +43,6 @@ const DEFAULTS: Record<string, string> = {
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
-
-function todayDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function yesterdayDateStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 function mapJsDayToOur(jsDay: number): number {
   return (jsDay + 6) % 7;
@@ -88,8 +78,8 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   const [searchText, setSearchText] = useState('');
   const [streak, setStreak] = useState(0);
 
-  const today = todayDateStr();
-  const todayIndex = mapJsDayToOur(new Date().getDay());
+  const today = useToday();
+  const todayIndex = useMemo(() => mapJsDayToOur(new Date(today + 'T00:00:00').getDay()), [today]);
 
   const [loggedYesterdayParts, setLoggedYesterdayParts] = useState<Set<string>>(new Set());
 
@@ -291,7 +281,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           {searchText.length > 0 && (
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-3"
+              className="p-3.5"
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -317,7 +307,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 className={`h-9 px-4 items-center justify-center rounded-full ${
                   active
                     ? 'bg-primary border border-primary'
-                    : 'bg-secondary text-muted-foreground active:bg-secondary/80'
+                    : 'bg-secondary active:bg-secondary/80'
                 }`}
                 aria-label={`Filter by ${t.label}`}
               >
@@ -368,6 +358,18 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 ? 'No recent exercises'
                 : `No exercises for ${selectedTab}`}
             </Text>
+            {todayParts.length === 0 && (
+              <Pressable
+                onPress={() => router.push('/routine')}
+                className="mt-4 bg-primary rounded-full px-4 py-2 active:opacity-80"
+                accessibilityRole="button"
+                aria-label="Set up your routine"
+              >
+                <Text className="text-sm font-semibold text-primary-foreground">
+                  Set up your routine
+                </Text>
+              </Pressable>
+            )}
           </View>
         )
       ) : (

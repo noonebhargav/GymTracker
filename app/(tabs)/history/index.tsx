@@ -3,12 +3,14 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { getSetting, getWorkoutDateRange } from '@/lib/database';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react-native';
 import { CalendarTab } from '@/components/history/calendar-tab';
 import { SummaryTab } from '@/components/history/summary-tab';
 import { InsightsTab } from '@/components/history/insights-tab';
+import { Segmented } from '@/components/ui/segmented-control';
+import { todayDateStr, useToday } from '@/lib/use-today';
 
 type Mode = 'calendar' | 'summary' | 'insights';
 
@@ -16,10 +18,7 @@ function pad(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+const todayStr = todayDateStr;
 
 function getMondayOfWeek(ds: string): string {
   const d = new Date(ds + 'T00:00:00');
@@ -57,13 +56,20 @@ function formatWindowLabel(windowEndDate: string): string {
 
 export default function HistoryTab() {
   const db = useSQLiteContext();
+  const today = useToday();
   const [mode, setMode] = useState<Mode>('calendar');
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
-  const [windowEndDate, setWindowEndDate] = useState(() => todayStr());
+  const [windowEndDate, setWindowEndDate] = useState(today);
   const [dateRange, setDateRange] = useState<{ first: string; last: string } | null>(null);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [loaded, setLoaded] = useState(false);
+
+  const prevTodayRef = useRef(today);
+  useEffect(() => {
+    setWindowEndDate((prev) => (prev === prevTodayRef.current ? today : prev));
+    prevTodayRef.current = today;
+  }, [today]);
 
   const loadMeta = useCallback(async () => {
     const [range, wu] = await Promise.all([
@@ -159,9 +165,19 @@ export default function HistoryTab() {
         <Text className="text-base font-medium text-foreground text-center mb-1">
           No workouts logged yet
         </Text>
-        <Text className="text-sm text-muted-foreground text-center">
+        <Text className="text-sm text-muted-foreground text-center mb-4">
           Head over to the Workout tab to log your first exercise.
         </Text>
+        <Pressable
+          onPress={() => router.push('/workout')}
+          className="bg-primary rounded-full px-4 py-2 active:opacity-80"
+          accessibilityRole="button"
+          aria-label="Go to Workout tab"
+        >
+          <Text className="text-sm font-semibold text-primary-foreground">
+            Go to Workout
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -169,25 +185,16 @@ export default function HistoryTab() {
   return (
     <View className="flex-1 bg-background">
       {/* Segmented control */}
-      <View className="flex-row mx-4 mt-3 bg-muted rounded-lg p-0.5">
-        {(['calendar', 'summary', 'insights'] as Mode[]).map((m) => (
-          <Pressable
-            key={m}
-            onPress={() => setMode(m)}
-            className={`flex-1 h-10 rounded-md items-center justify-center ${
-              mode === m ? 'bg-background shadow-sm' : ''
-            }`}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                mode === m ? 'text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Segmented
+        className="mx-4 mt-3"
+        options={[
+          { key: 'calendar', label: 'Calendar' },
+          { key: 'summary', label: 'Summary' },
+          { key: 'insights', label: 'Insights' },
+        ]}
+        value={mode}
+        onChange={(v) => setMode(v as Mode)}
+      />
 
       {/* Navigator */}
       {mode === 'insights' ? (

@@ -352,22 +352,52 @@ export async function replaceWorkoutSets(
   sets: WorkoutSetInput[]
 ): Promise<void> {
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
+    const existing = await db.getAllAsync<{
+      id: number;
+      set_number: number;
+      weight: number;
+      reps: number;
+      body_part: string;
+    }>(
+      'SELECT id, set_number, weight, reps, body_part FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
       date,
       exerciseId
     );
+    const existingBySetNumber = new Map(existing.map((r) => [r.set_number, r]));
+    const incomingSetNumbers = new Set(sets.map((s) => s.set_number));
+
+    for (const row of existing) {
+      if (!incomingSetNumbers.has(row.set_number)) {
+        await db.runAsync('DELETE FROM workout_logs WHERE id = ?', row.id);
+      }
+    }
+
     for (const s of sets) {
-      await db.runAsync(
-        `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        s.exercise_id,
-        s.set_number,
-        s.weight,
-        s.reps,
-        s.date_logged,
-        s.body_part
-      );
+      const prev = existingBySetNumber.get(s.set_number);
+      if (!prev) {
+        await db.runAsync(
+          `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          s.exercise_id,
+          s.set_number,
+          s.weight,
+          s.reps,
+          s.date_logged,
+          s.body_part
+        );
+      } else if (
+        prev.weight !== s.weight ||
+        prev.reps !== s.reps ||
+        prev.body_part !== s.body_part
+      ) {
+        await db.runAsync(
+          'UPDATE workout_logs SET weight = ?, reps = ?, body_part = ? WHERE id = ?',
+          s.weight,
+          s.reps,
+          s.body_part,
+          prev.id
+        );
+      }
     }
   });
 }
@@ -499,29 +529,43 @@ export async function getExercisePRHistory(
 }
 
 export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
-  const rows = await db.getAllAsync<{ date_logged: string }>(
-    `SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged DESC`
+  const logged = await db.getAllAsync<{ date_logged: string }>(
+    `SELECT DISTINCT date_logged FROM workout_logs`
   );
-  if (rows.length === 0) return 0;
+  if (logged.length === 0) return 0;
+  const loggedSet = new Set(logged.map((r) => r.date_logged));
+
+  const routineRows = await db.getAllAsync<{ day_of_week: number }>(
+    `SELECT DISTINCT day_of_week FROM routines`
+  );
+  const scheduledDays = new Set(routineRows.map((r) => r.day_of_week));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let streak = 0;
-  let expected = new Date(today);
+  const formatDate = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const mapJsDay = (jsDay: number): number => (jsDay + 6) % 7;
 
-  for (const { date_logged } of rows) {
-    const d = new Date(date_logged);
-    d.setHours(0, 0, 0, 0);
-    const diff = (expected.getTime() - d.getTime()) / 86400000;
-    if (diff === 0) {
+  let streak = 0;
+  const cursor = new Date(today);
+  let gracedToday = false;
+  // Safety bound: walk back at most ~3 years to avoid pathological loops on routines with very few scheduled days.
+  for (let i = 0; i < 365 * 3; i++) {
+    // Skip routine rest days only if a routine exists.
+    if (scheduledDays.size > 0 && !scheduledDays.has(mapJsDay(cursor.getDay()))) {
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    const ds = formatDate(cursor);
+    if (loggedSet.has(ds)) {
       streak++;
-      expected.setDate(expected.getDate() - 1);
-    } else if (diff === 1 && streak === 0) {
-      expected.setDate(expected.getDate() - 1);
+    } else if (!gracedToday && cursor.getTime() === today.getTime()) {
+      gracedToday = true;
     } else {
       break;
     }
+    cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }

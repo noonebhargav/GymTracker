@@ -181,7 +181,7 @@ function AccentRow({
             <Pressable
               key={color.key}
               onPress={() => onChange(color.key)}
-              className={`size-10 rounded-full ${
+              className={`size-11 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
               style={{ backgroundColor: color.swatchHex }}
@@ -275,7 +275,8 @@ export default function SettingsTab() {
       Uniwind.setTheme('system');
       InteractionManager.runAfterInteractions(() => {
         applyAccentColor('lime');
-        setAccent(undefined);
+        const lime = ACCENT_COLORS.find((c) => c.key === 'lime');
+        setAccent(lime?.swatchHex);
       });
 
       setResetDialogOpen(false);
@@ -337,6 +338,7 @@ export default function SettingsTab() {
       />
       <SegmentedControl
         label="Mode"
+        description="Queue: missed body parts roll over to today. Skip: only today's scheduled parts show up."
         options={[
           { key: 'false', label: 'Skip' },
           { key: 'true', label: 'Queue' },

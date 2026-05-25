@@ -23,6 +23,7 @@ import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
 import { useAccentHex } from '@/lib/accent-store';
+import { useToday } from '@/lib/use-today';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -41,11 +42,6 @@ const DEFAULTS: Record<string, string> = {
   default_reps: '10',
   weight_unit: 'lbs',
 };
-
-function todayDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 type SetValues = { weight: number; reps: number };
 
@@ -66,7 +62,7 @@ export default function ExerciseSetEditor() {
   const [prWeight, setPrWeight] = useState<number | null>(null);
   const accentHex = useAccentHex() ?? '#d8fe3d';
 
-  const today = todayDateStr();
+  const today = useToday();
   const isKg = weightUnit === 'kg';
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);

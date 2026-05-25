@@ -6,6 +6,7 @@ import {
   OTHER_EQUIPMENT_LABEL,
   OTHER_EQUIPMENT_TYPES,
   PRIMARY_EQUIPMENT,
+  slugToGroup,
 } from '@/lib/exercise-groups';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -17,15 +18,14 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, View, ActivityIndicator } from 'react-native';
 
-const GOLD_LOWER = GOLD_STANDARD_GROUPS.map((g) => g.toLowerCase());
 const PRIMARY_LOWER = PRIMARY_EQUIPMENT.map((e) => e.toLowerCase());
 
 function resolveFilter(raw: string): { type: 'group' | 'equipment'; value: string; label: string } | null {
   const lower = raw.toLowerCase();
 
-  const groupIdx = GOLD_LOWER.indexOf(lower);
-  if (groupIdx !== -1) {
-    return { type: 'group', value: GOLD_STANDARD_GROUPS[groupIdx], label: GOLD_STANDARD_GROUPS[groupIdx] };
+  const group = slugToGroup(lower);
+  if (group) {
+    return { type: 'group', value: group, label: group };
   }
 
   if (lower === OTHER_EQUIPMENT_LABEL.toLowerCase()) {

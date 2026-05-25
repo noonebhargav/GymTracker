@@ -161,12 +161,14 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
                     {day}
                   </Text>
                 </View>
-                {hasWorkout && (
-                  <View
-                    style={{ width: sz, height: sz, borderRadius: sz / 2, marginTop: 2 }}
-                    className={today ? 'bg-primary-foreground/60' : 'bg-primary'}
-                  />
-                )}
+                <View style={{ height: 12, marginTop: 2, alignItems: 'center', justifyContent: 'center' }}>
+                  {hasWorkout && (
+                    <View
+                      style={{ width: sz, height: sz, borderRadius: sz / 2 }}
+                      className={today ? 'bg-primary-foreground/60' : 'bg-primary'}
+                    />
+                  )}
+                </View>
               </Pressable>
             );
           })}

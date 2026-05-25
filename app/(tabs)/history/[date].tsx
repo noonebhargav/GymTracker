@@ -122,7 +122,7 @@ export default function HistoryDateDetail() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {/* Day Summary Card */}
-        <View className="mx-4 mt-4 rounded-xl border border-primary/10 p-4">
+        <View className="mx-4 mt-4 rounded-xl bg-card border border-primary/10 p-4">
           <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
             Day Summary
           </Text>
@@ -184,7 +184,7 @@ export default function HistoryDateDetail() {
                 </Text>
               </View>
 
-              <View className="pl-13">
+              <View className="pl-16">
                 {group.sets.map((s) => (
                   <View key={s.setNumber} className="flex-row items-center gap-4 mb-1">
                     <Text className="text-sm text-muted-foreground w-6 tabular-nums">

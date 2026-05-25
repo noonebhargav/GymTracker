@@ -8,15 +8,21 @@ import { ThemeProvider, Stack } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useUniwind, Uniwind } from 'uniwind';
 import * as SystemUI from 'expo-system-ui';
+import { View } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
-function AccentLoader() {
+const LIME = ACCENT_COLORS[0];
+
+function AccentGate({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
   const { theme } = useUniwind();
+  const [loaded, setLoaded] = useState(false);
+  const isDark = theme === 'dark';
+  const bgColor = isDark ? THEME.dark.background : THEME.light.background;
 
   useEffect(() => {
     (async () => {
@@ -25,14 +31,18 @@ function AccentLoader() {
       if (thm === 'system' || thm === 'light' || thm === 'dark') {
         Uniwind.setTheme(thm);
       }
-      const effective = (thm === 'system' ? (theme as string) : thm) || theme;
       applyAccentColor(accent);
-      const color = ACCENT_COLORS.find((c) => c.key === accent);
-      setAccent(color ? color.swatchHex : undefined);
+      const color = ACCENT_COLORS.find((c) => c.key === accent) ?? LIME;
+      setAccent(color.swatchHex);
+      setLoaded(true);
     })();
-  }, [db, theme]);
+  }, [db]);
 
-  return null;
+  if (!loaded) {
+    return <View style={{ flex: 1, backgroundColor: bgColor }} />;
+  }
+
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -47,13 +57,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={NAV_THEME[isDark ? 'dark' : 'light']}>
       <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
-        <AccentLoader />
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Stack screenOptions={{ contentStyle: { backgroundColor: bgColor } }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
-        </Stack>
-        <PortalHost />
+        <AccentGate>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <Stack screenOptions={{ contentStyle: { backgroundColor: bgColor } }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
+          </Stack>
+          <PortalHost />
+        </AccentGate>
       </SQLiteProvider>
     </ThemeProvider>
   );

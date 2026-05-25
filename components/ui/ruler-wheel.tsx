@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAccentHex } from '@/lib/accent-store';
 import {
   View,
@@ -47,6 +47,11 @@ export function RulerWheel({
   const { width: screenWidth } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const [liveValue, setLiveValue] = useState(value);
+
+  useEffect(() => {
+    setLiveValue(value);
+  }, [value]);
 
   const steps = Math.round((max - min) / step);
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
@@ -73,9 +78,9 @@ export function RulerWheel({
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
       const newVal = clamp(min + idx * step, min, max);
-      if (newVal !== value) onChange(newVal);
+      setLiveValue((prev) => (prev === newVal ? prev : newVal));
     },
-    [min, max, step, onChange, value]
+    [min, max, step]
   );
 
   const onScrollEnd = useCallback(
@@ -83,9 +88,10 @@ export function RulerWheel({
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
       const snappedX = idx * TICK_WIDTH;
-      // Force the scroll to land exactly on a tick
-      scrollRef.current?.scrollTo({ x: snappedX, animated: false });
+      // Animate snap so the strip settles smoothly on its tick.
+      scrollRef.current?.scrollTo({ x: snappedX, animated: true });
       const newVal = clamp(min + idx * step, min, max);
+      setLiveValue(newVal);
       if (newVal !== value) onChange(newVal);
     },
     [min, max, step, onChange, value]
@@ -94,6 +100,7 @@ export function RulerWheel({
   const applyQuickStep = useCallback(
     (delta: number) => {
       const newVal = clamp(value + delta, min, max);
+      setLiveValue(newVal);
       onChange(newVal);
       scrollRef.current?.scrollTo({ x: valueToOffset(newVal), animated: true });
     },
@@ -139,7 +146,7 @@ export function RulerWheel({
         {/* Value display */}
         <View className="items-center py-2">
           <Text className="font-bold text-foreground" style={{ fontSize: 44, lineHeight: 52 }}>
-            {value}
+            {liveValue}
             <Text className="text-lg text-muted-foreground font-medium"> {unit}</Text>
           </Text>
         </View>
