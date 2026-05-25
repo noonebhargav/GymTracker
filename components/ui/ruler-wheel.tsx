@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   useWindowDimensions,
+  useColorScheme,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
@@ -51,6 +52,11 @@ export function RulerWheel({
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
   const accentHex = useAccentHex() ?? '#d8fe3d';
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const minorTickColor = isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)';
+  const majorTickColor = isDark ? '#9ca3af' : '#6c6f78';
+  const labelColor = isDark ? '#9ca3af' : '#6c6f78';
 
   const valueToOffset = useCallback(
     (v: number) => ((v - min) / step) * TICK_WIDTH,
@@ -83,7 +89,7 @@ export function RulerWheel({
     [value, min, max, onChange, valueToOffset]
   );
 
-  const padding = screenWidth / 2;
+  const padding = screenWidth / 2 - TICK_WIDTH / 2;
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -152,7 +158,7 @@ export function RulerWheel({
                     style={{
                       width: 1.5,
                       height: isMajor ? 22 : 10,
-                      backgroundColor: isMajor ? '#6c6f78' : 'rgba(255,255,255,0.15)',
+                      backgroundColor: isMajor ? majorTickColor : minorTickColor,
                       marginTop: 8,
                     }}
                   />
@@ -164,7 +170,7 @@ export function RulerWheel({
                         width: 36,
                         left: -12,
                         fontSize: 9,
-                        color: '#6c6f78',
+                        color: labelColor,
                         textAlign: 'center',
                       }}
                     >
