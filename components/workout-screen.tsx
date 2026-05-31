@@ -20,7 +20,7 @@ import {
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
-import { useToday, yesterdayDateStr } from '@/lib/use-today';
+import { useToday } from '@/lib/use-today';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
@@ -80,6 +80,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const today = useToday();
   const todayIndex = useMemo(() => mapJsDayToOur(new Date(today + 'T00:00:00').getDay()), [today]);
+  const yesterday = useMemo(() => {
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [today]);
 
   const [loggedYesterdayParts, setLoggedYesterdayParts] = useState<Set<string>>(new Set());
 
@@ -143,10 +148,10 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   useEffect(() => {
     if (!loaded || !queueEnabled) return;
-    getLoggedBodyPartsForDate(db, yesterdayDateStr()).then((parts) => {
+    getLoggedBodyPartsForDate(db, yesterday).then((parts) => {
       setLoggedYesterdayParts(new Set(parts));
     });
-  }, [db, loaded, queueEnabled]);
+  }, [db, loaded, queueEnabled, yesterday]);
 
   useEffect(() => {
     if (!loaded) return;

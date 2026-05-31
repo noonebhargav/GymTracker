@@ -23,16 +23,12 @@ function daysInMonth(y: number, m: number): number {
   return new Date(y, m + 1, 0).getDate();
 }
 
-function isToday(y: number, m: number, d: number): boolean {
-  const n = new Date();
-  return n.getFullYear() === y && n.getMonth() === m && n.getDate() === d;
+function isToday(ds: string, today: string): boolean {
+  return ds === today;
 }
 
-function isFuture(y: number, m: number, d: number): boolean {
-  const t = new Date(y, m, d);
-  const n = new Date();
-  n.setHours(0, 0, 0, 0);
-  return t > n;
+function isFuture(ds: string, today: string): boolean {
+  return ds > today;
 }
 
 function getMonthGrid(y: number, m: number): (number | null)[][] {
@@ -66,9 +62,10 @@ interface CalendarTabProps {
   year: number;
   month: number;
   weightUnit: 'lbs' | 'kg';
+  today: string;
 }
 
-export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
+export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps) {
   const db = useSQLiteContext();
   const [aggregates, setAggregates] = useState<DayAggregateRow[]>([]);
 
@@ -132,8 +129,8 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
             const ds = dateStr(year, month, day);
             const agg = aggMap.get(ds);
             const hasWorkout = !!agg;
-            const today = isToday(year, month, day);
-            const future = isFuture(year, month, day);
+            const isCurrentDay = isToday(ds, today);
+            const future = isFuture(ds, today);
             const sz = hasWorkout ? dotSize(agg.exercise_count) : 6;
 
             return (
@@ -146,12 +143,12 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
               >
                 <View
                   className={`size-10 items-center justify-center rounded-full ${
-                    today ? 'bg-primary' : ''
+                    isCurrentDay ? 'bg-primary' : ''
                   }`}
                 >
                   <Text
                     className={`text-sm tabular-nums ${
-                      today
+                      isCurrentDay
                         ? 'text-primary-foreground font-bold'
                         : future || !hasWorkout
                           ? 'text-muted-foreground'
@@ -165,7 +162,7 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
                   {hasWorkout && (
                     <View
                       style={{ width: sz, height: sz, borderRadius: sz / 2 }}
-                      className={today ? 'bg-primary-foreground/60' : 'bg-primary'}
+                      className={isCurrentDay ? 'bg-primary-foreground/60' : 'bg-primary'}
                     />
                   )}
                 </View>
