@@ -121,7 +121,7 @@ export function RulerWheel({
 
       {/* Sheet */}
       <Animated.View
-        entering={SlideInDown.duration(280).springify().damping(20)}
+        entering={SlideInDown.duration(280)}
         className="absolute bottom-0 left-0 right-0 bg-card rounded-t-[24px]"
         style={{ paddingBottom: bottom + 8 }}
       >

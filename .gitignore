@@ -41,8 +41,8 @@ expo-env.d.ts
 # @end expo-cli
 
 # agents
-.agents/
-.claude/
+.agents
+.claude
 
 #artifacts
 android/
