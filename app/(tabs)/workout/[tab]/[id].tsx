@@ -67,10 +67,13 @@ export default function ExerciseSetEditor() {
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);
 
-  const isDirty = useMemo(
-    () => JSON.stringify(setValues) !== JSON.stringify(initialSetValues),
-    [setValues, initialSetValues]
-  );
+  const isDirty = useMemo(() => {
+    if (setValues.length !== initialSetValues.length) return true;
+    return setValues.some(
+      (s, i) =>
+        s.weight !== initialSetValues[i].weight || s.reps !== initialSetValues[i].reps
+    );
+  }, [setValues, initialSetValues]);
 
   useEffect(() => {
     if (!exerciseId) return;

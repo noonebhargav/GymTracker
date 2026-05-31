@@ -513,23 +513,12 @@ export async function getMonthlyAggregates(
   );
 }
 
-export async function getExercisePRHistory(
-  db: SQLiteDatabase,
-  exerciseId: string,
-  beforeDate: string
-): Promise<number> {
-  const row = await db.getFirstAsync<{ max_weight: number | null }>(
-    `SELECT MAX(CAST(weight AS REAL)) as max_weight
-     FROM workout_logs
-     WHERE exercise_id = ? AND date_logged < ?`,
-    exerciseId,
-    beforeDate
-  );
-  return row?.max_weight ?? 0;
-}
-
-// Returns the kg PR weight iff the exercise's all-time max was first achieved on `date`.
-// Lets the set editor re-derive the PR chip on every load so it persists across navigation.
+// Returns the kg PR weight iff the exercise's all-time max weight was FIRST achieved on
+// `date` (the chip means "you set or first tied your PR on this day"). A later session that
+// only ties an existing PR returns null, since the PR was first reached on an earlier date.
+// Re-derived on every set-editor load so the chip persists across navigation.
+// CAST is applied consistently in both the outer aggregate and the inner subquery so the
+// comparison stays numeric even if a weight is ever stored as text.
 export async function getExercisePRForDate(
   db: SQLiteDatabase,
   exerciseId: string,
@@ -539,7 +528,7 @@ export async function getExercisePRForDate(
     `SELECT MAX(CAST(weight AS REAL)) as max_weight, MIN(date_logged) as first_date
      FROM workout_logs
      WHERE exercise_id = ?
-       AND weight = (SELECT MAX(weight) FROM workout_logs WHERE exercise_id = ?)`,
+       AND CAST(weight AS REAL) = (SELECT MAX(CAST(weight AS REAL)) FROM workout_logs WHERE exercise_id = ?)`,
     exerciseId,
     exerciseId
   );
