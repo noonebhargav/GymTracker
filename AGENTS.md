@@ -122,6 +122,16 @@ npx tsc --noEmit    # Type-check the project
 - Each tab gets its own file or folder under `app/`.
 - Use `typedRoutes: true` (enabled in app.json).
 
+## Workflow
+
+> **One task at a time**: Work on only a **single task or sub-task at a time**, based on what the user asks for. Do not batch or pull additional work forward — finish the current item, then stop for the user before moving on.
+
+**Mandatory completion sequence** — after finishing each task/sub-task, run these in order before doing anything else:
+
+1. **`requesting-code-review`** — request a code review of the completed work.
+2. **`receiving-code-review`** — process and respond to the review feedback (verify, then address it).
+3. **Commit** — only commit **after** steps 1 and 2 are complete. Never commit before the code review cycle has run.
+
 ## Skill Usage
 
 > **Strict Skill Restriction**: Only use skills from `.agents/skills/` in this project. Do not use external or global skills.
