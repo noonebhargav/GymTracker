@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 
@@ -59,9 +60,14 @@ export function RulerWheel({
   const accentHex = useAccentHex() ?? '#d8fe3d';
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
-  const minorTickColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.3)';
-  const majorTickColor = isDark ? '#9ca3af' : '#6c6f78';
-  const labelColor = isDark ? '#9ca3af' : '#6c6f78';
+  const palette = isDark ? THEME.dark : THEME.light;
+  // Major ticks/labels use the themed muted-foreground; minor ticks are a faded
+  // shade of the same color so they read as a lighter step, not a separate hue.
+  const majorTickColor = palette.mutedForeground;
+  const labelColor = palette.mutedForeground;
+  // Faded shade of the SAME muted-foreground (dark #6c6f78 / light #8b8e96) so minor ticks
+  // sit a clear step below major ticks in both themes.
+  const minorTickColor = isDark ? 'rgba(108,111,120,0.5)' : 'rgba(139,142,150,0.5)';
 
   const valueToOffset = useCallback(
     (v: number) => ((v - min) / step) * TICK_WIDTH,
@@ -83,13 +89,14 @@ export function RulerWheel({
     [min, max, step]
   );
 
+  // Native `snapToInterval` + `decelerationRate="fast"` already settles the strip on a tick,
+  // so we only read the resulting offset and commit the value. We deliberately do NOT call
+  // `scrollTo` here: an animated programmatic scroll on momentum-end fights the native snap
+  // and can re-trigger momentum, causing visible jitter / a feedback loop (mainly iOS).
   const onScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
-      const snappedX = idx * TICK_WIDTH;
-      // Animate snap so the strip settles smoothly on its tick.
-      scrollRef.current?.scrollTo({ x: snappedX, animated: true });
       const newVal = clamp(min + idx * step, min, max);
       setLiveValue(newVal);
       if (newVal !== value) onChange(newVal);
