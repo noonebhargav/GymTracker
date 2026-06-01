@@ -72,6 +72,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const [queueEnabled, setQueueEnabled] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [streak, setStreak] = useState(0);
 
   const today = useToday();
@@ -149,8 +150,10 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     });
   }, [db, loaded, queueEnabled, yesterday]);
 
+  // Lazy: only fetch recents while the Recent tab is actually being viewed.
+  // Re-runs if todayParts change so the list stays correct when returning to the tab.
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || selectedTab !== 'recent') return;
     if (todayParts.length === 0) {
       setRecentExercises([]);
       return;
@@ -158,7 +161,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     getRecentExercises(db, todayParts, 15).then((rows) => {
       setRecentExercises(rows);
     });
-  }, [db, loaded, todayParts]);
+  }, [db, loaded, todayParts, selectedTab]);
 
   const goldMap = useMemo(() => {
     const map = new Map<string, ExerciseRow[]>();
@@ -198,15 +201,22 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     });
   }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
 
+  // Debounce filtering so typing doesn't re-filter the full list on every keystroke.
+  // The TextInput stays bound to searchText for instant feedback; only the filter waits.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchText), 150);
+    return () => clearTimeout(id);
+  }, [searchText]);
+
   const filteredExercises = useMemo(() => {
-    if (!searchText) return baseFiltered;
-    const q = searchText.toLowerCase();
+    if (!debouncedSearch) return baseFiltered;
+    const q = debouncedSearch.toLowerCase();
     return baseFiltered.filter(
       (e) =>
         e.name.toLowerCase().includes(q) ||
         e.equipment?.toLowerCase().includes(q)
     );
-  }, [baseFiltered, searchText]);
+  }, [baseFiltered, debouncedSearch]);
 
   const tabs = useMemo(() => {
     const t: { key: string; label: string }[] = [{ key: 'recent', label: 'Recent' }];
