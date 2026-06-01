@@ -1,4 +1,4 @@
-import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager, Alert } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -260,7 +260,7 @@ export default function SettingsTab() {
     // Dismiss the dialog immediately so it isn't blocked by the delete, then run the
     // wipe + restore-defaults after the dismissal interaction settles.
     setResetDialogOpen(false);
-    InteractionManager.runAfterInteractions(async () => {
+    requestAnimationFrame(async () => {
       try {
         await resetAllData(db);
 
@@ -399,7 +399,7 @@ export default function SettingsTab() {
           persistStr('theme', v);
           const key = v as 'light' | 'dark' | 'system';
           Uniwind.setTheme(key);
-          InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
             applyAccentColor(accentColor);
           });
         }}
@@ -409,7 +409,7 @@ export default function SettingsTab() {
         onChange={(key) => {
           setAccentColor(key);
           persistStr('accent_color', key);
-          InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
             applyAccentColor(key);
           });
           const color = ACCENT_COLORS.find((c) => c.key === key);
