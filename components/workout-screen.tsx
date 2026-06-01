@@ -23,6 +23,7 @@ import { capitalizeWords } from '@/lib/utils';
 import { useToday } from '@/lib/use-today';
 import { mapJsDayToOur } from '@/lib/date-utils';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -264,14 +265,14 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   if (!loaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Day name + streak header */}
       <View className="px-4 pt-3 pb-1">
         <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest">
@@ -413,6 +414,6 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           keyboardShouldPersistTaps="handled"
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

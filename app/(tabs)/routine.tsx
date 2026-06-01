@@ -1,6 +1,7 @@
 import { View, Pressable, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getAllRoutines, setRoutineDay } from '@/lib/database';
 import { GOLD_STANDARD_GROUPS } from '@/lib/exercise-groups';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -102,8 +103,9 @@ export default function RoutineTab() {
   }
 
   return (
+    <ScreenWrapper>
     <ScrollView
-      className="flex-1 bg-background"
+      className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
     >
       <ScrollView
@@ -208,5 +210,6 @@ export default function RoutineTab() {
         </View>
       )}
     </ScrollView>
+    </ScreenWrapper>
   );
 }

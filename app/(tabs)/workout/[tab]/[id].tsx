@@ -5,6 +5,7 @@ import { View, Pressable, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import {
   getExerciseById,
   getSetting,
@@ -203,9 +204,9 @@ export default function ExerciseSetEditor() {
 
   if (!loaded) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
+      <ScreenWrapper className="items-center justify-center">
         <Text className="text-muted-foreground">Loading...</Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 
@@ -215,7 +216,7 @@ export default function ExerciseSetEditor() {
   const activeField = rulerWheel?.field ?? null;
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Header */}
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-3" aria-label="Back">
@@ -386,6 +387,6 @@ export default function ExerciseSetEditor() {
           onDone={() => setRulerWheel(null)}
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

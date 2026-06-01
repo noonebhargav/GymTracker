@@ -1,6 +1,7 @@
 import { View, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getSetting, getWorkoutDateRange } from '@/lib/database';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
@@ -154,15 +155,15 @@ export default function HistoryTab() {
 
   if (!loaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (!dateRange) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-8">
+      <ScreenWrapper className="items-center justify-center px-8">
         <Icon as={Clock} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
         <Text className="text-base font-medium text-foreground text-center mb-1">
           No workouts logged yet
@@ -180,12 +181,12 @@ export default function HistoryTab() {
             Go to Workout
           </Text>
         </Pressable>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Segmented control */}
       <Segmented
         className="mx-4 mt-3"
@@ -267,6 +268,6 @@ export default function HistoryTab() {
       {mode === 'insights' && (
         <InsightsTab windowEndDate={windowEndDate} weightUnit={weightUnit} />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

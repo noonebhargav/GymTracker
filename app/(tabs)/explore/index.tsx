@@ -9,6 +9,7 @@ import {
 } from '@/lib/exercise-groups';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { ArrowLeft, Search, X } from 'lucide-react-native';
@@ -100,7 +101,7 @@ export default function ExploreIndex() {
   );
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Search bar */}
       <View className="px-4 pt-2 pb-2">
         <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
@@ -214,6 +215,6 @@ export default function ExploreIndex() {
           </View>
         </ScrollView>
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

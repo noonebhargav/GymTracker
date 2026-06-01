@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
@@ -309,7 +310,7 @@ export default function SettingsTab() {
   const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
     <ScrollView
       className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
@@ -473,6 +474,6 @@ export default function SettingsTab() {
         onDone={() => setRulerOpen(null)}
       />
     )}
-    </View>
+    </ScreenWrapper>
   );
 }
