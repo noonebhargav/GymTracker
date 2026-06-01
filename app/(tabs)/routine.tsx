@@ -104,7 +104,7 @@ export default function RoutineTab() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior="never"
     >
       <ScrollView
         horizontal
