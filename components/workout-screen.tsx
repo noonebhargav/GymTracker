@@ -219,6 +219,21 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     return t;
   }, [todayParts]);
 
+  // Parts shown today only because Queue mode rolled them over from yesterday's
+  // unfinished routine (i.e. not also scheduled for today). Used to badge their chips.
+  const carryoverParts = useMemo(() => {
+    const carry = new Set<string>();
+    if (!queueEnabled) return carry;
+    const scheduledToday = routines.get(todayIndex) ?? new Set<string>();
+    const yesterdayParts = routines.get((todayIndex + 6) % 7);
+    if (yesterdayParts) {
+      for (const p of yesterdayParts) {
+        if (!loggedYesterdayParts.has(p) && !scheduledToday.has(p)) carry.add(p);
+      }
+    }
+    return carry;
+  }, [queueEnabled, routines, todayIndex, loggedYesterdayParts]);
+
   const navigateToTab = useCallback((tabKey: string) => {
     setSearchText('');
     router.setParams({ tab: tabKey === 'recent' ? 'recent' : tabKey });
@@ -305,6 +320,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         >
           {tabs.map((t) => {
             const active = t.key === selectedTab;
+            const isCarryover = carryoverParts.has(t.key);
             return (
               <Pressable
                 key={t.key}
@@ -314,7 +330,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                     ? 'bg-primary border border-primary'
                     : 'bg-secondary active:bg-secondary/80'
                 }`}
-                aria-label={`Filter by ${t.label}`}
+                aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
               >
                 <Text
                   className={`text-sm font-medium ${
@@ -323,6 +339,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 >
                   {t.label}
                 </Text>
+                {isCarryover && (
+                  <View
+                    className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
+                  />
+                )}
               </Pressable>
             );
           })}

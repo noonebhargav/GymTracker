@@ -1,7 +1,14 @@
 import { View, Pressable } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/text';
 
 type Option = { key: string; label: string };
+
+// Light selection feedback on an actual change; no buzz when re-tapping the active option.
+function selectWithHaptic(current: string, next: string, onChange: (v: string) => void) {
+  if (next !== current) Haptics.selectionAsync().catch(() => {});
+  onChange(next);
+}
 
 export function Segmented({
   options,
@@ -21,7 +28,7 @@ export function Segmented({
         return (
           <Pressable
             key={opt.key}
-            onPress={() => onChange(opt.key)}
+            onPress={() => selectWithHaptic(value, opt.key, onChange)}
             className={`flex-1 h-10 rounded-md items-center justify-center ${
               active ? 'bg-background shadow-sm' : ''
             }`}
@@ -66,7 +73,7 @@ export function SegmentedControl({
             return (
               <Pressable
                 key={opt.key}
-                onPress={() => onChange(opt.key)}
+                onPress={() => selectWithHaptic(value, opt.key, onChange)}
                 className={`px-3.5 h-10 items-center justify-center ${
                   i > 0 ? 'border-l border-border' : ''
                 } ${active ? 'bg-primary' : 'active:bg-muted/80'}`}

@@ -2,6 +2,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import {
@@ -61,6 +62,7 @@ export default function ExerciseSetEditor() {
   const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
   const [prWeight, setPrWeight] = useState<number | null>(null);
   const accentHex = useAccentHex() ?? '#d8fe3d';
+  const { bottom } = useSafeAreaInsets();
 
   const today = useToday();
   const isKg = weightUnit === 'kg';
@@ -230,7 +232,11 @@ export default function ExerciseSetEditor() {
         )}
       </View>
 
-      <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 16 }}
+      >
         {/* Exercise info row */}
         <Pressable onPress={goToDetail} className="active:bg-muted/50">
           <View className="flex-row items-center px-4 py-4 gap-3 border-b border-border">
@@ -333,31 +339,35 @@ export default function ExerciseSetEditor() {
           </Pressable>
         </View>
 
-        {/* Action buttons */}
-        <View className="px-4 pb-8 flex-row gap-3">
-          {isDone && !isDirty ? (
-            <Pressable
-              onPress={removeFromDone}
-              className="flex-1 py-3 rounded-lg border border-destructive items-center active:bg-destructive/10"
-            >
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Trash2} className="size-4 text-destructive" />
-                <Text className="text-sm font-semibold text-destructive">Remove</Text>
-              </View>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={markAsDone}
-              className="flex-1 py-3 rounded-lg bg-primary items-center active:bg-primary/90"
-            >
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Check} className="size-4 text-primary-foreground" />
-                <Text className="text-sm font-semibold text-primary-foreground">Mark as Done</Text>
-              </View>
-            </Pressable>
-          )}
-        </View>
       </ScrollView>
+
+      {/* Sticky action bar — stays visible regardless of how many sets are listed */}
+      <View
+        className="px-4 pt-3 flex-row gap-3 border-t border-border bg-background"
+        style={{ paddingBottom: bottom + 12 }}
+      >
+        {isDone && !isDirty ? (
+          <Pressable
+            onPress={removeFromDone}
+            className="flex-1 py-3 rounded-lg border border-destructive items-center active:bg-destructive/10"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Icon as={Trash2} className="size-4 text-destructive" />
+              <Text className="text-sm font-semibold text-destructive">Remove</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={markAsDone}
+            className="flex-1 py-3 rounded-lg bg-primary items-center active:bg-primary/90"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Icon as={Check} className="size-4 text-primary-foreground" />
+              <Text className="text-sm font-semibold text-primary-foreground">Mark as Done</Text>
+            </View>
+          </Pressable>
+        )}
+      </View>
 
       {/* RulerWheel overlay */}
       {rulerWheel !== null && (
