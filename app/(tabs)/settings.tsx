@@ -312,7 +312,7 @@ export default function SettingsTab() {
     <View className="flex-1 bg-background">
     <ScrollView
       className="flex-1"
-      contentInsetAdjustmentBehavior="never"
+      contentInsetAdjustmentBehavior="automatic"
     >
       <SectionHeader title="General" />
       <SegmentedControl
