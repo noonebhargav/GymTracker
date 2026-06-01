@@ -287,19 +287,19 @@ export default function SettingsTab() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-8">
+      <ScreenWrapper className="items-center justify-center px-8">
         <Text className="text-base text-muted-foreground text-center">
           Could not load settings. Try restarting the app.
         </Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 

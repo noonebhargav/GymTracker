@@ -3,6 +3,7 @@ import { getExerciseGif } from '@/lib/exercise-assets';
 import { capitalizeWords, parseJsonArray } from '@/lib/utils';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { useSQLiteContext } from 'expo-sqlite';
 import { ArrowLeft } from 'lucide-react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -22,9 +23,9 @@ export default function ExerciseDetailPage() {
 
   if (!detail) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
+      <ScreenWrapper className="items-center justify-center">
         <Text className="text-muted-foreground">Loading...</Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 
@@ -33,7 +34,7 @@ export default function ExerciseDetailPage() {
   const steps = parseJsonArray(detail.instruction_steps);
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-3 mr-2">
           <Icon as={ArrowLeft} className="size-5 text-foreground" />
@@ -95,7 +96,7 @@ export default function ExerciseDetailPage() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
