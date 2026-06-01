@@ -1,6 +1,8 @@
 import { View, Pressable, Text as RNText } from 'react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useTheme } from '@react-navigation/native';
+import { Tabs, useTheme } from 'expo-router';
+import type { ComponentProps } from 'react';
+
+type BottomTabBarProps = NonNullable<ComponentProps<typeof Tabs>['tabBar']> extends (props: infer P) => unknown ? P : never;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUniwind } from 'uniwind';
 import { THEME } from '@/lib/theme';

@@ -3,22 +3,19 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { getSetting, getWorkoutDateRange } from '@/lib/database';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react-native';
 import { CalendarTab } from '@/components/history/calendar-tab';
 import { SummaryTab } from '@/components/history/summary-tab';
 import { InsightsTab } from '@/components/history/insights-tab';
+import { Segmented } from '@/components/ui/segmented-control';
+import { useToday } from '@/lib/use-today';
 
 type Mode = 'calendar' | 'summary' | 'insights';
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
-}
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function getMondayOfWeek(ds: string): string {
@@ -57,13 +54,20 @@ function formatWindowLabel(windowEndDate: string): string {
 
 export default function HistoryTab() {
   const db = useSQLiteContext();
+  const today = useToday();
   const [mode, setMode] = useState<Mode>('calendar');
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
-  const [windowEndDate, setWindowEndDate] = useState(() => todayStr());
+  const [windowEndDate, setWindowEndDate] = useState(today);
   const [dateRange, setDateRange] = useState<{ first: string; last: string } | null>(null);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [loaded, setLoaded] = useState(false);
+
+  const prevTodayRef = useRef(today);
+  useEffect(() => {
+    setWindowEndDate((prev) => (prev === prevTodayRef.current ? today : prev));
+    prevTodayRef.current = today;
+  }, [today]);
 
   const loadMeta = useCallback(async () => {
     const [range, wu] = await Promise.all([
@@ -90,12 +94,12 @@ export default function HistoryTab() {
   }, [dateRange, currentYear, currentMonth]);
 
   const canGoNext = useMemo(() => {
-    const now = new Date();
+    const [ty, tm] = today.split('-').map(Number);
     return (
-      currentYear < now.getFullYear() ||
-      (currentYear === now.getFullYear() && currentMonth < now.getMonth())
+      currentYear < ty ||
+      (currentYear === ty && currentMonth < tm - 1)
     );
-  }, [currentYear, currentMonth]);
+  }, [currentYear, currentMonth, today]);
 
   const canGoPrevWindow = useMemo(() => {
     if (!dateRange?.first) return false;
@@ -103,17 +107,21 @@ export default function HistoryTab() {
   }, [windowEndDate, dateRange]);
 
   const canGoNextWindow = useMemo(() => {
-    return windowEndDate < todayStr();
-  }, [windowEndDate]);
+    return windowEndDate < today;
+  }, [windowEndDate, today]);
 
-  // Snap: when there are fewer than 10 weeks of data, place the first logged
+  // Snap once: when there are fewer than 10 weeks of data, place the first logged
   // week at W1 so data fills from the left with no empty bars on the left side.
+  // Guarded so it never clobbers a window the user has manually navigated to.
+  const didSnapRef = useRef(false);
   useEffect(() => {
+    if (didSnapRef.current) return;
     if (!dateRange?.first) return;
-    if (dateRange.first >= addDays(todayStr(), -69)) {
+    didSnapRef.current = true;
+    if (dateRange.first >= addDays(today, -69)) {
       setWindowEndDate(addDays(getMondayOfWeek(dateRange.first), 69));
     }
-  }, [dateRange?.first]);
+  }, [dateRange?.first, today]);
 
   const goToPrevMonth = useCallback(() => {
     if (currentMonth === 0) {
@@ -140,9 +148,9 @@ export default function HistoryTab() {
   const goToNextWindow = useCallback(() => {
     setWindowEndDate((d) => {
       const next = addWeeks(d, 10);
-      return next > todayStr() ? todayStr() : next;
+      return next > today ? today : next;
     });
-  }, []);
+  }, [today]);
 
   if (!loaded) {
     return (
@@ -159,9 +167,19 @@ export default function HistoryTab() {
         <Text className="text-base font-medium text-foreground text-center mb-1">
           No workouts logged yet
         </Text>
-        <Text className="text-sm text-muted-foreground text-center">
+        <Text className="text-sm text-muted-foreground text-center mb-4">
           Head over to the Workout tab to log your first exercise.
         </Text>
+        <Pressable
+          onPress={() => router.push('/workout')}
+          className="bg-primary rounded-full px-4 py-2 active:opacity-80"
+          accessibilityRole="button"
+          aria-label="Go to Workout tab"
+        >
+          <Text className="text-sm font-semibold text-primary-foreground">
+            Go to Workout
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -169,25 +187,16 @@ export default function HistoryTab() {
   return (
     <View className="flex-1 bg-background">
       {/* Segmented control */}
-      <View className="flex-row mx-4 mt-3 bg-muted rounded-lg p-0.5">
-        {(['calendar', 'summary', 'insights'] as Mode[]).map((m) => (
-          <Pressable
-            key={m}
-            onPress={() => setMode(m)}
-            className={`flex-1 h-10 rounded-md items-center justify-center ${
-              mode === m ? 'bg-background shadow-sm' : ''
-            }`}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                mode === m ? 'text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Segmented
+        className="mx-4 mt-3"
+        options={[
+          { key: 'calendar', label: 'Calendar' },
+          { key: 'summary', label: 'Summary' },
+          { key: 'insights', label: 'Insights' },
+        ]}
+        value={mode}
+        onChange={(v) => setMode(v as Mode)}
+      />
 
       {/* Navigator */}
       {mode === 'insights' ? (
@@ -250,7 +259,7 @@ export default function HistoryTab() {
 
       {/* Tab content */}
       {mode === 'calendar' && (
-        <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />
+        <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} today={today} />
       )}
       {mode === 'summary' && (
         <SummaryTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />

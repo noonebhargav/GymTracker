@@ -11,6 +11,18 @@ export const GOLD_STANDARD_GROUPS = [
 
 export type GoldStandardGroup = (typeof GOLD_STANDARD_GROUPS)[number];
 
+export function groupToSlug(group: string): string {
+  return group.toLowerCase().replace(/\//g, '-');
+}
+
+export function slugToGroup(slug: string): GoldStandardGroup | null {
+  const target = slug.toLowerCase();
+  for (const g of GOLD_STANDARD_GROUPS) {
+    if (groupToSlug(g) === target) return g;
+  }
+  return null;
+}
+
 export function toGoldStandardGroup(
   bodyPart: string,
   target?: string | null

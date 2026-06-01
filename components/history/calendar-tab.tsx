@@ -8,6 +8,7 @@ import {
   displayWeight,
   type DayAggregateRow,
 } from '@/lib/database';
+import { mapJsDayToOur } from '@/lib/date-utils';
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -23,22 +24,18 @@ function daysInMonth(y: number, m: number): number {
   return new Date(y, m + 1, 0).getDate();
 }
 
-function isToday(y: number, m: number, d: number): boolean {
-  const n = new Date();
-  return n.getFullYear() === y && n.getMonth() === m && n.getDate() === d;
+function isToday(ds: string, today: string): boolean {
+  return ds === today;
 }
 
-function isFuture(y: number, m: number, d: number): boolean {
-  const t = new Date(y, m, d);
-  const n = new Date();
-  n.setHours(0, 0, 0, 0);
-  return t > n;
+function isFuture(ds: string, today: string): boolean {
+  return ds > today;
 }
 
 function getMonthGrid(y: number, m: number): (number | null)[][] {
   const firstDay = new Date(y, m, 1).getDay();
   const totalDays = daysInMonth(y, m);
-  const offset = (firstDay + 6) % 7;
+  const offset = mapJsDayToOur(firstDay);
   const grid: (number | null)[][] = [];
   let week: (number | null)[] = [];
   for (let i = 0; i < offset; i++) week.push(null);
@@ -66,9 +63,10 @@ interface CalendarTabProps {
   year: number;
   month: number;
   weightUnit: 'lbs' | 'kg';
+  today: string;
 }
 
-export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
+export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps) {
   const db = useSQLiteContext();
   const [aggregates, setAggregates] = useState<DayAggregateRow[]>([]);
 
@@ -132,8 +130,8 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
             const ds = dateStr(year, month, day);
             const agg = aggMap.get(ds);
             const hasWorkout = !!agg;
-            const today = isToday(year, month, day);
-            const future = isFuture(year, month, day);
+            const isCurrentDay = isToday(ds, today);
+            const future = isFuture(ds, today);
             const sz = hasWorkout ? dotSize(agg.exercise_count) : 6;
 
             return (
@@ -146,12 +144,12 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
               >
                 <View
                   className={`size-10 items-center justify-center rounded-full ${
-                    today ? 'bg-primary' : ''
+                    isCurrentDay ? 'bg-primary' : ''
                   }`}
                 >
                   <Text
                     className={`text-sm tabular-nums ${
-                      today
+                      isCurrentDay
                         ? 'text-primary-foreground font-bold'
                         : future || !hasWorkout
                           ? 'text-muted-foreground'
@@ -161,12 +159,14 @@ export function CalendarTab({ year, month, weightUnit }: CalendarTabProps) {
                     {day}
                   </Text>
                 </View>
-                {hasWorkout && (
-                  <View
-                    style={{ width: sz, height: sz, borderRadius: sz / 2, marginTop: 2 }}
-                    className={today ? 'bg-primary-foreground/60' : 'bg-primary'}
-                  />
-                )}
+                <View style={{ height: 12, marginTop: 2, alignItems: 'center', justifyContent: 'center' }}>
+                  {hasWorkout && (
+                    <View
+                      style={{ width: sz, height: sz, borderRadius: sz / 2 }}
+                      className={isCurrentDay ? 'bg-primary-foreground/60' : 'bg-primary'}
+                    />
+                  )}
+                </View>
               </Pressable>
             );
           })}

@@ -20,6 +20,8 @@ import {
 } from '@/lib/database';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
+import { useToday } from '@/lib/use-today';
+import { mapJsDayToOur } from '@/lib/date-utils';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
@@ -42,22 +44,6 @@ const DEFAULTS: Record<string, string> = {
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
-
-function todayDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function yesterdayDateStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function mapJsDayToOur(jsDay: number): number {
-  return (jsDay + 6) % 7;
-}
-
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -86,10 +72,16 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const [queueEnabled, setQueueEnabled] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [streak, setStreak] = useState(0);
 
-  const today = todayDateStr();
-  const todayIndex = mapJsDayToOur(new Date().getDay());
+  const today = useToday();
+  const todayIndex = useMemo(() => mapJsDayToOur(new Date(today + 'T00:00:00').getDay()), [today]);
+  const yesterday = useMemo(() => {
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [today]);
 
   const [loggedYesterdayParts, setLoggedYesterdayParts] = useState<Set<string>>(new Set());
 
@@ -153,13 +145,15 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   useEffect(() => {
     if (!loaded || !queueEnabled) return;
-    getLoggedBodyPartsForDate(db, yesterdayDateStr()).then((parts) => {
+    getLoggedBodyPartsForDate(db, yesterday).then((parts) => {
       setLoggedYesterdayParts(new Set(parts));
     });
-  }, [db, loaded, queueEnabled]);
+  }, [db, loaded, queueEnabled, yesterday]);
 
+  // Lazy: only fetch recents while the Recent tab is actually being viewed.
+  // Re-runs if todayParts change so the list stays correct when returning to the tab.
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || selectedTab !== 'recent') return;
     if (todayParts.length === 0) {
       setRecentExercises([]);
       return;
@@ -167,7 +161,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     getRecentExercises(db, todayParts, 15).then((rows) => {
       setRecentExercises(rows);
     });
-  }, [db, loaded, todayParts]);
+  }, [db, loaded, todayParts, selectedTab]);
 
   const goldMap = useMemo(() => {
     const map = new Map<string, ExerciseRow[]>();
@@ -207,15 +201,22 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     });
   }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
 
+  // Debounce filtering so typing doesn't re-filter the full list on every keystroke.
+  // The TextInput stays bound to searchText for instant feedback; only the filter waits.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchText), 150);
+    return () => clearTimeout(id);
+  }, [searchText]);
+
   const filteredExercises = useMemo(() => {
-    if (!searchText) return baseFiltered;
-    const q = searchText.toLowerCase();
+    if (!debouncedSearch) return baseFiltered;
+    const q = debouncedSearch.toLowerCase();
     return baseFiltered.filter(
       (e) =>
         e.name.toLowerCase().includes(q) ||
         e.equipment?.toLowerCase().includes(q)
     );
-  }, [baseFiltered, searchText]);
+  }, [baseFiltered, debouncedSearch]);
 
   const tabs = useMemo(() => {
     const t: { key: string; label: string }[] = [{ key: 'recent', label: 'Recent' }];
@@ -223,6 +224,21 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     t.push({ key: 'all', label: 'All' });
     return t;
   }, [todayParts]);
+
+  // Parts shown today only because Queue mode rolled them over from yesterday's
+  // unfinished routine (i.e. not also scheduled for today). Used to badge their chips.
+  const carryoverParts = useMemo(() => {
+    const carry = new Set<string>();
+    if (!queueEnabled) return carry;
+    const scheduledToday = routines.get(todayIndex) ?? new Set<string>();
+    const yesterdayParts = routines.get((todayIndex + 6) % 7);
+    if (yesterdayParts) {
+      for (const p of yesterdayParts) {
+        if (!loggedYesterdayParts.has(p) && !scheduledToday.has(p)) carry.add(p);
+      }
+    }
+    return carry;
+  }, [queueEnabled, routines, todayIndex, loggedYesterdayParts]);
 
   const navigateToTab = useCallback((tabKey: string) => {
     setSearchText('');
@@ -291,7 +307,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           {searchText.length > 0 && (
             <Pressable
               onPress={() => setSearchText('')}
-              className="p-3"
+              className="p-3.5"
               aria-label="Clear search"
             >
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
@@ -310,6 +326,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         >
           {tabs.map((t) => {
             const active = t.key === selectedTab;
+            const isCarryover = carryoverParts.has(t.key);
             return (
               <Pressable
                 key={t.key}
@@ -317,9 +334,9 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 className={`h-9 px-4 items-center justify-center rounded-full ${
                   active
                     ? 'bg-primary border border-primary'
-                    : 'bg-secondary text-muted-foreground active:bg-secondary/80'
+                    : 'bg-secondary active:bg-secondary/80'
                 }`}
-                aria-label={`Filter by ${t.label}`}
+                aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
               >
                 <Text
                   className={`text-sm font-medium ${
@@ -328,6 +345,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 >
                   {t.label}
                 </Text>
+                {isCarryover && (
+                  <View
+                    className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
+                  />
+                )}
               </Pressable>
             );
           })}
@@ -368,6 +390,18 @@ export function WorkoutScreen({ tab }: { tab: string }) {
                 ? 'No recent exercises'
                 : `No exercises for ${selectedTab}`}
             </Text>
+            {todayParts.length === 0 && (
+              <Pressable
+                onPress={() => router.push('/routine')}
+                className="mt-4 bg-primary rounded-full px-4 py-2 active:opacity-80"
+                accessibilityRole="button"
+                aria-label="Set up your routine"
+              >
+                <Text className="text-sm font-semibold text-primary-foreground">
+                  Set up your routine
+                </Text>
+              </Pressable>
+            )}
           </View>
         )
       ) : (

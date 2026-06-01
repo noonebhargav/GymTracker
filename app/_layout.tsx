@@ -1,25 +1,27 @@
 import '@/global.css';
 
 import { initAndSeedDatabase, getSetting } from '@/lib/database';
-import { NAV_THEME } from '@/lib/theme';
-import { applyAccentColor, ACCENT_COLORS } from '@/lib/accent-colors';
+import { NAV_THEME, useThemeColors } from '@/lib/theme';
+import { applyAccentColor, ACCENT_COLORS, DEFAULT_ACCENT_KEY } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
-import { ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider, Stack } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
-import { Stack } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import { StatusBar } from 'react-native';
-import { useEffect } from 'react';
-import { useUniwind, Uniwind } from 'uniwind';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Uniwind } from 'uniwind';
 import * as SystemUI from 'expo-system-ui';
-
-SystemUI.setBackgroundColorAsync('transparent');
+import { View } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
-function AccentLoader() {
+const DEFAULT_ACCENT =
+  ACCENT_COLORS.find((c) => c.key === DEFAULT_ACCENT_KEY) ?? ACCENT_COLORS[0];
+
+function AccentGate({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
-  const { theme } = useUniwind();
+  const { colors } = useThemeColors();
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -28,33 +30,39 @@ function AccentLoader() {
       if (thm === 'system' || thm === 'light' || thm === 'dark') {
         Uniwind.setTheme(thm);
       }
-      const effective = (thm === 'system' ? (theme as string) : thm) || theme;
       applyAccentColor(accent);
-      const color = ACCENT_COLORS.find((c) => c.key === accent);
-      setAccent(color ? color.swatchHex : undefined);
+      const color = ACCENT_COLORS.find((c) => c.key === accent) ?? DEFAULT_ACCENT;
+      setAccent(color.swatchHex);
+      setLoaded(true);
     })();
-  }, [db, theme]);
+  }, [db]);
 
-  return null;
+  if (!loaded) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
-  const { theme } = useUniwind();
-  const isDark = theme === 'dark';
+  const { isDark, colors } = useThemeColors();
+  const bgColor = colors.background;
 
   useEffect(() => {
-    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
-  }, [isDark]);
+    SystemUI.setBackgroundColorAsync(bgColor);
+  }, [bgColor]);
 
   return (
-    <ThemeProvider value={NAV_THEME[theme ?? 'light']}>
+    <ThemeProvider value={NAV_THEME[isDark ? 'dark' : 'light']}>
       <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
-        <AccentLoader />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
-        </Stack>
-        <PortalHost />
+        <AccentGate>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <Stack screenOptions={{ contentStyle: { backgroundColor: bgColor } }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />
+          </Stack>
+          <PortalHost />
+        </AccentGate>
       </SQLiteProvider>
     </ThemeProvider>
   );

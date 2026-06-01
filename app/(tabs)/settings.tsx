@@ -181,7 +181,7 @@ function AccentRow({
             <Pressable
               key={color.key}
               onPress={() => onChange(color.key)}
-              className={`size-10 rounded-full ${
+              className={`size-11 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
               style={{ backgroundColor: color.swatchHex }}
@@ -206,7 +206,6 @@ export default function SettingsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [rulerOpen, setRulerOpen] = useState<'weight' | 'reps' | null>(null);
 
   useEffect(() => {
@@ -256,35 +255,33 @@ export default function SettingsTab() {
     [db]
   );
 
-  const handleReset = useCallback(async () => {
-    setResetting(true);
-    try {
-      await resetAllData(db);
+  const handleReset = useCallback(() => {
+    // Dismiss the dialog immediately so it isn't blocked by the delete, then run the
+    // wipe + restore-defaults after the dismissal interaction settles.
+    setResetDialogOpen(false);
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        await resetAllData(db);
 
-      const kg = Number(DEFAULTS.default_weight);
-      const unit = DEFAULTS.weight_unit as 'lbs' | 'kg';
+        const kg = Number(DEFAULTS.default_weight);
+        const unit = DEFAULTS.weight_unit as 'lbs' | 'kg';
 
-      setDefaultSets(Number(DEFAULTS.default_sets));
-      setDefaultWeight(displayWeight(kg, unit));
-      setDefaultReps(Number(DEFAULTS.default_reps));
-      setWeightUnit(unit);
-      setQueueEnabled(false);
-      setTheme('system');
-      setAccentColor('lime');
+        setDefaultSets(Number(DEFAULTS.default_sets));
+        setDefaultWeight(displayWeight(kg, unit));
+        setDefaultReps(Number(DEFAULTS.default_reps));
+        setWeightUnit(unit);
+        setQueueEnabled(false);
+        setTheme('system');
+        setAccentColor('lime');
 
-      Uniwind.setTheme('system');
-      InteractionManager.runAfterInteractions(() => {
+        Uniwind.setTheme('system');
         applyAccentColor('lime');
-        setAccent(undefined);
-      });
-
-      setResetDialogOpen(false);
-    } catch {
-      Alert.alert('Error', 'Could not reset data. Please try again.');
-      setResetDialogOpen(false);
-    } finally {
-      setResetting(false);
-    }
+        const lime = ACCENT_COLORS.find((c) => c.key === 'lime');
+        setAccent(lime?.swatchHex);
+      } catch {
+        Alert.alert('Error', 'Could not reset data. Please try again.');
+      }
+    });
   }, [db]);
 
   if (loading) {
@@ -337,6 +334,7 @@ export default function SettingsTab() {
       />
       <SegmentedControl
         label="Mode"
+        description="Queue: missed body parts roll over to today. Skip: only today's scheduled parts show up."
         options={[
           { key: 'false', label: 'Skip' },
           { key: 'true', label: 'Queue' },
@@ -439,18 +437,12 @@ export default function SettingsTab() {
                 This will permanently delete all your workout history, weekly routines, and settings. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            {resetting && (
-              <View className="items-center py-4">
-                <ActivityIndicator />
-                <Text className="text-sm text-muted-foreground mt-3">Resetting data...</Text>
-              </View>
-            )}
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={resetting}>
+              <AlertDialogCancel>
                 <Text>Cancel</Text>
               </AlertDialogCancel>
-              <Button variant="destructive" size="sm" onPress={handleReset} disabled={resetting}>
-                {resetting ? <Text>Resetting...</Text> : <Text>Reset</Text>}
+              <Button variant="destructive" size="sm" onPress={handleReset}>
+                <Text>Reset</Text>
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAccentHex } from '@/lib/accent-store';
 import {
   View,
@@ -9,6 +9,8 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 
@@ -46,11 +48,26 @@ export function RulerWheel({
   const { width: screenWidth } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const [liveValue, setLiveValue] = useState(value);
+
+  useEffect(() => {
+    setLiveValue(value);
+  }, [value]);
 
   const steps = Math.round((max - min) / step);
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
   const accentHex = useAccentHex() ?? '#d8fe3d';
+  const { theme } = useUniwind();
+  const isDark = theme === 'dark';
+  const palette = isDark ? THEME.dark : THEME.light;
+  // Major ticks/labels use the themed muted-foreground; minor ticks are a faded
+  // shade of the same color so they read as a lighter step, not a separate hue.
+  const majorTickColor = palette.mutedForeground;
+  const labelColor = palette.mutedForeground;
+  // Faded shade of the SAME muted-foreground (dark #6c6f78 / light #8b8e96) so minor ticks
+  // sit a clear step below major ticks in both themes.
+  const minorTickColor = isDark ? 'rgba(108,111,120,0.5)' : 'rgba(139,142,150,0.5)';
 
   const valueToOffset = useCallback(
     (v: number) => ((v - min) / step) * TICK_WIDTH,
@@ -67,9 +84,22 @@ export function RulerWheel({
       const x = e.nativeEvent.contentOffset.x;
       const idx = Math.round(x / TICK_WIDTH);
       const newVal = clamp(min + idx * step, min, max);
-      if (newVal !== value) {
-        onChange(newVal);
-      }
+      setLiveValue((prev) => (prev === newVal ? prev : newVal));
+    },
+    [min, max, step]
+  );
+
+  // Native `snapToInterval` + `decelerationRate="fast"` already settles the strip on a tick,
+  // so we only read the resulting offset and commit the value. We deliberately do NOT call
+  // `scrollTo` here: an animated programmatic scroll on momentum-end fights the native snap
+  // and can re-trigger momentum, causing visible jitter / a feedback loop (mainly iOS).
+  const onScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const idx = Math.round(x / TICK_WIDTH);
+      const newVal = clamp(min + idx * step, min, max);
+      setLiveValue(newVal);
+      if (newVal !== value) onChange(newVal);
     },
     [min, max, step, onChange, value]
   );
@@ -77,13 +107,14 @@ export function RulerWheel({
   const applyQuickStep = useCallback(
     (delta: number) => {
       const newVal = clamp(value + delta, min, max);
+      setLiveValue(newVal);
       onChange(newVal);
       scrollRef.current?.scrollTo({ x: valueToOffset(newVal), animated: true });
     },
     [value, min, max, onChange, valueToOffset]
   );
 
-  const padding = screenWidth / 2;
+  const padding = screenWidth / 2 - TICK_WIDTH / 2;
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -97,7 +128,7 @@ export function RulerWheel({
 
       {/* Sheet */}
       <Animated.View
-        entering={SlideInDown.duration(280).springify().damping(20)}
+        entering={SlideInDown.duration(280)}
         className="absolute bottom-0 left-0 right-0 bg-card rounded-t-[24px]"
         style={{ paddingBottom: bottom + 8 }}
       >
@@ -122,7 +153,7 @@ export function RulerWheel({
         {/* Value display */}
         <View className="items-center py-2">
           <Text className="font-bold text-foreground" style={{ fontSize: 44, lineHeight: 52 }}>
-            {value}
+            {liveValue}
             <Text className="text-lg text-muted-foreground font-medium"> {unit}</Text>
           </Text>
         </View>
@@ -137,8 +168,8 @@ export function RulerWheel({
             decelerationRate="fast"
             onScroll={onScrollEvent}
             scrollEventThrottle={16}
-            onScrollEndDrag={onScrollEvent}
-            onMomentumScrollEnd={onScrollEvent}
+            onScrollEndDrag={onScrollEnd}
+            onMomentumScrollEnd={onScrollEnd}
             contentContainerStyle={{ paddingHorizontal: padding }}
           >
             {Array.from({ length: steps + 1 }, (_, i) => {
@@ -152,7 +183,7 @@ export function RulerWheel({
                     style={{
                       width: 1.5,
                       height: isMajor ? 22 : 10,
-                      backgroundColor: isMajor ? '#6c6f78' : 'rgba(255,255,255,0.15)',
+                      backgroundColor: isMajor ? majorTickColor : minorTickColor,
                       marginTop: 8,
                     }}
                   />
@@ -164,7 +195,7 @@ export function RulerWheel({
                         width: 36,
                         left: -12,
                         fontSize: 9,
-                        color: '#6c6f78',
+                        color: labelColor,
                         textAlign: 'center',
                       }}
                     >

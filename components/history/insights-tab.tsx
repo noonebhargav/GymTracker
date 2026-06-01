@@ -16,8 +16,22 @@ import {
 } from '@/lib/database';
 import { GOLD_STANDARD_GROUPS, toGoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
+import { useAccentHex } from '@/lib/accent-store';
 
-const PRIMARY_COLOR = '#d8fe3d';
+const FALLBACK_ACCENT = '#d8fe3d';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const m = hex.replace('#', '');
+  const v = m.length === 3
+    ? m.split('').map((c) => c + c).join('')
+    : m;
+  const n = parseInt(v, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgba({ r, g, b }: { r: number; g: number; b: number }, alpha: number): string {
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
@@ -57,6 +71,8 @@ interface InsightsTabProps {
 
 export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
   const db = useSQLiteContext();
+  const accentHex = useAccentHex() ?? FALLBACK_ACCENT;
+  const accentRgb = useMemo(() => hexToRgb(accentHex), [accentHex]);
   const windowStartDate = useMemo(() => addDays(windowEndDate, -69), [windowEndDate]);
   const heatmapStart = useMemo(() => addDays(windowEndDate, -6), [windowEndDate]);
 
@@ -147,13 +163,13 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
                 className="rounded-full px-2 py-0.5"
                 style={{
                   backgroundColor: delta >= 0
-                    ? 'rgba(216,254,61,0.15)'
+                    ? rgba(accentRgb, 0.15)
                     : 'rgba(239,68,68,0.15)',
                 }}
               >
                 <Text
                   className="text-[10px] font-bold"
-                  style={{ color: delta >= 0 ? PRIMARY_COLOR : '#ef4444' }}
+                  style={{ color: delta >= 0 ? accentHex : '#ef4444' }}
                 >
                   {delta >= 0 ? '+' : ''}{delta}%
                 </Text>
@@ -211,7 +227,7 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
                 minWidth: 72,
                 flex: 1,
                 backgroundColor: avg > 0
-                  ? `rgba(216,254,61,${0.08 + intensity * 0.45})`
+                  ? rgba(accentRgb, 0.08 + intensity * 0.45)
                   : undefined,
               }}
             >
@@ -236,7 +252,7 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
             {[0.08, 0.19, 0.30, 0.42, 0.53].map((opacity, i) => (
               <View
                 key={i}
-                style={{ flex: 1, height: 4, backgroundColor: `rgba(216,254,61,${opacity})` }}
+                style={{ flex: 1, height: 4, backgroundColor: rgba(accentRgb, opacity) }}
               />
             ))}
           </View>

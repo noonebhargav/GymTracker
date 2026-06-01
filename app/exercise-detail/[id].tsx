@@ -9,6 +9,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, View, StatusBar, Platform } from 'react-native';
 import { useUniwind } from 'uniwind';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ExerciseDetailModal() {
   const db = useSQLiteContext();
@@ -16,6 +17,7 @@ export default function ExerciseDetailModal() {
   const [detail, setDetail] = useState<ExerciseDetail | null>(null);
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
@@ -43,7 +45,7 @@ export default function ExerciseDetailModal() {
     <View className="flex-1 bg-background">
       <View
         className="flex-row items-center px-4 pb-2 border-b border-border"
-        style={{ paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 16 }}
+        style={{ paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : insets.top }}
       >
         <Pressable onPress={() => router.back()} className="p-3 mr-2">
           <Icon as={ArrowLeft} className="size-5 text-foreground" />
@@ -56,7 +58,7 @@ export default function ExerciseDetailModal() {
       <ScrollView className="flex-1">
         {/* Hero illustration */}
         {gifSource && (
-          <View className="mx-4 mt-2 mb-4 rounded-[20px] py-8 items-center overflow-hidden" style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)' }}>
+          <View className="mx-4 mt-2 mb-4 rounded-[20px] py-8 items-center overflow-hidden bg-card border border-border">
             <Image source={gifSource} className="w-48 h-48" resizeMode="contain" />
           </View>
         )}

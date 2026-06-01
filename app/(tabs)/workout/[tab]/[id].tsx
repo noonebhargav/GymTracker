@@ -2,6 +2,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import {
@@ -12,7 +13,7 @@ import {
   replaceWorkoutSets,
   deleteWorkoutSets,
   getWorkoutLogsForToday,
-  getExercisePRHistory,
+  getExercisePRForDate,
   displayWeight,
   toKg,
   type ExerciseDetail,
@@ -23,6 +24,7 @@ import { capitalizeWords } from '@/lib/utils';
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
 import { useAccentHex } from '@/lib/accent-store';
+import { useToday } from '@/lib/use-today';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
@@ -42,11 +44,6 @@ const DEFAULTS: Record<string, string> = {
   weight_unit: 'lbs',
 };
 
-function todayDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 type SetValues = { weight: number; reps: number };
 
 export default function ExerciseSetEditor() {
@@ -65,16 +62,20 @@ export default function ExerciseSetEditor() {
   const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
   const [prWeight, setPrWeight] = useState<number | null>(null);
   const accentHex = useAccentHex() ?? '#d8fe3d';
+  const { bottom } = useSafeAreaInsets();
 
-  const today = todayDateStr();
+  const today = useToday();
   const isKg = weightUnit === 'kg';
   const goldGroup = exercise ? toGoldStandardGroup(exercise.body_part, exercise.target) : null;
   const imageSource = getExerciseImage(exercise?.assetId ?? null);
 
-  const isDirty = useMemo(
-    () => JSON.stringify(setValues) !== JSON.stringify(initialSetValues),
-    [setValues, initialSetValues]
-  );
+  const isDirty = useMemo(() => {
+    if (setValues.length !== initialSetValues.length) return true;
+    return setValues.some(
+      (s, i) =>
+        s.weight !== initialSetValues[i].weight || s.reps !== initialSetValues[i].reps
+    );
+  }, [setValues, initialSetValues]);
 
   useEffect(() => {
     if (!exerciseId) return;
@@ -101,13 +102,17 @@ export default function ExerciseSetEditor() {
       setIsDone(done);
 
       if (done) {
-        getWorkoutSetsForDate(db, today, exerciseId).then((todaySets) => {
+        Promise.all([
+          getWorkoutSetsForDate(db, today, exerciseId),
+          getExercisePRForDate(db, exerciseId, today),
+        ]).then(([todaySets, prKg]) => {
           const sets: SetValues[] = todaySets.map((s) => ({
             weight: displayWeight(s.weight, resolvedUnit),
             reps: s.reps,
           }));
           setSetValues(sets.length ? sets : []);
           setInitialSetValues([...sets]);
+          setPrWeight(prKg !== null ? displayWeight(prKg, resolvedUnit) : null);
           setLoaded(true);
         });
       } else {
@@ -168,12 +173,8 @@ export default function ExerciseSetEditor() {
     try {
       await replaceWorkoutSets(db, today, exercise.id, inputs);
 
-      const sessionMax = Math.max(...setValues.map((s) => s.weight));
-      const sessionMaxKg = toKg(sessionMax, weightUnit);
-      const historicalMax = await getExercisePRHistory(db, exercise.id, today);
-      if (sessionMaxKg > historicalMax) {
-        setPrWeight(sessionMax);
-      }
+      const prKg = await getExercisePRForDate(db, exercise.id, today);
+      setPrWeight(prKg !== null ? displayWeight(prKg, weightUnit) : null);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setIsDone(true);
@@ -231,7 +232,11 @@ export default function ExerciseSetEditor() {
         )}
       </View>
 
-      <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 16 }}
+      >
         {/* Exercise info row */}
         <Pressable onPress={goToDetail} className="active:bg-muted/50">
           <View className="flex-row items-center px-4 py-4 gap-3 border-b border-border">
@@ -334,31 +339,35 @@ export default function ExerciseSetEditor() {
           </Pressable>
         </View>
 
-        {/* Action buttons */}
-        <View className="px-4 pb-8 flex-row gap-3">
-          {isDone && !isDirty ? (
-            <Pressable
-              onPress={removeFromDone}
-              className="flex-1 py-3 rounded-lg border border-destructive items-center active:bg-destructive/10"
-            >
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Trash2} className="size-4 text-destructive" />
-                <Text className="text-sm font-semibold text-destructive">Remove</Text>
-              </View>
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={markAsDone}
-              className="flex-1 py-3 rounded-lg bg-primary items-center active:bg-primary/90"
-            >
-              <View className="flex-row items-center gap-1.5">
-                <Icon as={Check} className="size-4 text-primary-foreground" />
-                <Text className="text-sm font-semibold text-primary-foreground">Mark as Done</Text>
-              </View>
-            </Pressable>
-          )}
-        </View>
       </ScrollView>
+
+      {/* Sticky action bar — stays visible regardless of how many sets are listed */}
+      <View
+        className="px-4 pt-3 flex-row gap-3 border-t border-border bg-background"
+        style={{ paddingBottom: bottom + 12 }}
+      >
+        {isDone && !isDirty ? (
+          <Pressable
+            onPress={removeFromDone}
+            className="flex-1 py-3 rounded-lg border border-destructive items-center active:bg-destructive/10"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Icon as={Trash2} className="size-4 text-destructive" />
+              <Text className="text-sm font-semibold text-destructive">Remove</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={markAsDone}
+            className="flex-1 py-3 rounded-lg bg-primary items-center active:bg-primary/90"
+          >
+            <View className="flex-row items-center gap-1.5">
+              <Icon as={Check} className="size-4 text-primary-foreground" />
+              <Text className="text-sm font-semibold text-primary-foreground">Mark as Done</Text>
+            </View>
+          </Pressable>
+        )}
+      </View>
 
       {/* RulerWheel overlay */}
       {rulerWheel !== null && (

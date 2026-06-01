@@ -8,11 +8,11 @@
 
 | Category | Technology |
 |---|---|
-| Framework | Expo SDK 55, Expo Router v4 (file-based routing) |
+| Framework | Expo SDK 56, Expo Router v56 (file-based routing) |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS v4 via **Uniwind** |
 | Component Library | **React Native Reusables** (shadcn/ui-style, built on `@rn-primitives`) |
-| Database | `expo-sqlite` v55 |
+| Database | `expo-sqlite` v56 |
 | Icons | `lucide-react-native` |
 | Animation | `react-native-reanimated` v4, `tw-animate-css` |
 | Keyboard | `react-native-keyboard-controller` |
@@ -121,6 +121,16 @@ npx tsc --noEmit    # Type-check the project
 - Expo Router file-based routing. `app/_layout.tsx` is the root.
 - Each tab gets its own file or folder under `app/`.
 - Use `typedRoutes: true` (enabled in app.json).
+
+## Workflow
+
+> **One task at a time**: Work on only a **single task or sub-task at a time**, based on what the user asks for. Do not batch or pull additional work forward — finish the current item, then stop for the user before moving on.
+
+**Mandatory completion sequence** — after finishing each task/sub-task, run these in order before doing anything else:
+
+1. **`requesting-code-review`** — request a code review of the completed work.
+2. **`receiving-code-review`** — process and respond to the review feedback (verify, then address it).
+3. **Commit** — only commit **after** steps 1 and 2 are complete. Never commit before the code review cycle has run.
 
 ## Skill Usage
 

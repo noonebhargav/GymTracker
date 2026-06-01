@@ -5,6 +5,7 @@ import {
   formatEquipmentLabel,
   DISPLAY_EQUIPMENT,
   toConsolidatedEquipment,
+  groupToSlug,
 } from '@/lib/exercise-groups';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -91,7 +92,7 @@ export default function ExploreIndex() {
           group={g}
           assetId={item.assetId}
           right={<RowChevron />}
-          onPress={() => router.push(`/explore/${g?.toLowerCase() ?? 'other'}/${item.id}`)}
+          onPress={() => router.push(`/explore/${g ? groupToSlug(g) : 'other'}/${item.id}`)}
         />
       );
     },
@@ -117,7 +118,7 @@ export default function ExploreIndex() {
             aria-label="Search exercises"
           />
           {searchText.length > 0 && (
-            <Pressable onPress={() => setSearchText('')} className="p-3" aria-label="Clear search">
+            <Pressable onPress={() => setSearchText('')} className="p-3.5" aria-label="Clear search">
               <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
             </Pressable>
           )}
@@ -169,7 +170,7 @@ export default function ExploreIndex() {
             {GOLD_STANDARD_GROUPS.map((g) => (
               <Pressable
                 key={g}
-                onPress={() => router.push(`/explore/${g.toLowerCase()}`)}
+                onPress={() => router.push(`/explore/${groupToSlug(g)}`)}
                 style={{ width: '50%' }}
                 className="p-1.5"
                 aria-label={`${g}, ${groupCounts[g] ?? 0} exercises`}
@@ -194,7 +195,7 @@ export default function ExploreIndex() {
             {DISPLAY_EQUIPMENT.filter((t) => (equipmentCounts[t] ?? 0) > 0).map((t) => (
               <Pressable
                 key={t}
-                onPress={() => router.push(`/explore/${t.toLowerCase()}`)}
+                onPress={() => router.push(`/explore/${encodeURIComponent(t.toLowerCase())}`)}
                 style={{ width: '50%' }}
                 className="p-1.5"
                 aria-label={`${formatEquipmentLabel(t)}, ${equipmentCounts[t] ?? 0} exercises`}

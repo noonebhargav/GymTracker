@@ -1,5 +1,6 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import seedData from '@/lib/seed_data.json';
+import { formatLocalDate, mapJsDayToOur } from '@/lib/date-utils';
 
 const LBS_FACTOR = 2.205;
 
@@ -352,22 +353,52 @@ export async function replaceWorkoutSets(
   sets: WorkoutSetInput[]
 ): Promise<void> {
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      'DELETE FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
+    const existing = await db.getAllAsync<{
+      id: number;
+      set_number: number;
+      weight: number;
+      reps: number;
+      body_part: string;
+    }>(
+      'SELECT id, set_number, weight, reps, body_part FROM workout_logs WHERE date_logged = ? AND exercise_id = ?',
       date,
       exerciseId
     );
+    const existingBySetNumber = new Map(existing.map((r) => [r.set_number, r]));
+    const incomingSetNumbers = new Set(sets.map((s) => s.set_number));
+
+    for (const row of existing) {
+      if (!incomingSetNumbers.has(row.set_number)) {
+        await db.runAsync('DELETE FROM workout_logs WHERE id = ?', row.id);
+      }
+    }
+
     for (const s of sets) {
-      await db.runAsync(
-        `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        s.exercise_id,
-        s.set_number,
-        s.weight,
-        s.reps,
-        s.date_logged,
-        s.body_part
-      );
+      const prev = existingBySetNumber.get(s.set_number);
+      if (!prev) {
+        await db.runAsync(
+          `INSERT INTO workout_logs (exercise_id, set_number, weight, reps, date_logged, body_part)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          s.exercise_id,
+          s.set_number,
+          s.weight,
+          s.reps,
+          s.date_logged,
+          s.body_part
+        );
+      } else if (
+        prev.weight !== s.weight ||
+        prev.reps !== s.reps ||
+        prev.body_part !== s.body_part
+      ) {
+        await db.runAsync(
+          'UPDATE workout_logs SET weight = ?, reps = ?, body_part = ? WHERE id = ?',
+          s.weight,
+          s.reps,
+          s.body_part,
+          prev.id
+        );
+      }
     }
   });
 }
@@ -483,45 +514,63 @@ export async function getMonthlyAggregates(
   );
 }
 
-export async function getExercisePRHistory(
+// Returns the kg PR weight iff the exercise's all-time max weight was FIRST achieved on
+// `date` (the chip means "you set or first tied your PR on this day"). A later session that
+// only ties an existing PR returns null, since the PR was first reached on an earlier date.
+// Re-derived on every set-editor load so the chip persists across navigation.
+// CAST is applied consistently in both the outer aggregate and the inner subquery so the
+// comparison stays numeric even if a weight is ever stored as text.
+export async function getExercisePRForDate(
   db: SQLiteDatabase,
   exerciseId: string,
-  beforeDate: string
-): Promise<number> {
-  const row = await db.getFirstAsync<{ max_weight: number | null }>(
-    `SELECT MAX(CAST(weight AS REAL)) as max_weight
+  date: string
+): Promise<number | null> {
+  const row = await db.getFirstAsync<{ max_weight: number | null; first_date: string | null }>(
+    `SELECT MAX(CAST(weight AS REAL)) as max_weight, MIN(date_logged) as first_date
      FROM workout_logs
-     WHERE exercise_id = ? AND date_logged < ?`,
+     WHERE exercise_id = ?
+       AND CAST(weight AS REAL) = (SELECT MAX(CAST(weight AS REAL)) FROM workout_logs WHERE exercise_id = ?)`,
     exerciseId,
-    beforeDate
+    exerciseId
   );
-  return row?.max_weight ?? 0;
+  if (!row || row.max_weight == null || row.first_date !== date) return null;
+  return row.max_weight;
 }
 
 export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
-  const rows = await db.getAllAsync<{ date_logged: string }>(
-    `SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged DESC`
+  const logged = await db.getAllAsync<{ date_logged: string }>(
+    `SELECT DISTINCT date_logged FROM workout_logs`
   );
-  if (rows.length === 0) return 0;
+  if (logged.length === 0) return 0;
+  const loggedSet = new Set(logged.map((r) => r.date_logged));
+
+  const routineRows = await db.getAllAsync<{ day_of_week: number }>(
+    `SELECT DISTINCT day_of_week FROM routines`
+  );
+  const scheduledDays = new Set(routineRows.map((r) => r.day_of_week));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   let streak = 0;
-  let expected = new Date(today);
-
-  for (const { date_logged } of rows) {
-    const d = new Date(date_logged);
-    d.setHours(0, 0, 0, 0);
-    const diff = (expected.getTime() - d.getTime()) / 86400000;
-    if (diff === 0) {
+  const cursor = new Date(today);
+  let gracedToday = false;
+  // Safety bound: walk back at most ~3 years to avoid pathological loops on routines with very few scheduled days.
+  for (let i = 0; i < 365 * 3; i++) {
+    // Skip routine rest days only if a routine exists.
+    if (scheduledDays.size > 0 && !scheduledDays.has(mapJsDayToOur(cursor.getDay()))) {
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    const ds = formatLocalDate(cursor);
+    if (loggedSet.has(ds)) {
       streak++;
-      expected.setDate(expected.getDate() - 1);
-    } else if (diff === 1 && streak === 0) {
-      expected.setDate(expected.getDate() - 1);
+    } else if (!gracedToday && cursor.getTime() === today.getTime()) {
+      gracedToday = true;
     } else {
       break;
     }
+    cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }
