@@ -1,28 +1,27 @@
 import '@/global.css';
 
 import { initAndSeedDatabase, getSetting } from '@/lib/database';
-import { NAV_THEME, THEME } from '@/lib/theme';
-import { applyAccentColor, ACCENT_COLORS } from '@/lib/accent-colors';
+import { NAV_THEME, useThemeColors } from '@/lib/theme';
+import { applyAccentColor, ACCENT_COLORS, DEFAULT_ACCENT_KEY } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { ThemeProvider, Stack } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useUniwind, Uniwind } from 'uniwind';
+import { Uniwind } from 'uniwind';
 import * as SystemUI from 'expo-system-ui';
 import { View } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
-const LIME = ACCENT_COLORS[0];
+const DEFAULT_ACCENT =
+  ACCENT_COLORS.find((c) => c.key === DEFAULT_ACCENT_KEY) ?? ACCENT_COLORS[0];
 
 function AccentGate({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
-  const { theme } = useUniwind();
+  const { colors } = useThemeColors();
   const [loaded, setLoaded] = useState(false);
-  const isDark = theme === 'dark';
-  const bgColor = isDark ? THEME.dark.background : THEME.light.background;
 
   useEffect(() => {
     (async () => {
@@ -32,23 +31,22 @@ function AccentGate({ children }: { children: ReactNode }) {
         Uniwind.setTheme(thm);
       }
       applyAccentColor(accent);
-      const color = ACCENT_COLORS.find((c) => c.key === accent) ?? LIME;
+      const color = ACCENT_COLORS.find((c) => c.key === accent) ?? DEFAULT_ACCENT;
       setAccent(color.swatchHex);
       setLoaded(true);
     })();
   }, [db]);
 
   if (!loaded) {
-    return <View style={{ flex: 1, backgroundColor: bgColor }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
   return <>{children}</>;
 }
 
 export default function RootLayout() {
-  const { theme } = useUniwind();
-  const isDark = theme === 'dark';
-  const bgColor = isDark ? THEME.dark.background : THEME.light.background;
+  const { isDark, colors } = useThemeColors();
+  const bgColor = colors.background;
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(bgColor);

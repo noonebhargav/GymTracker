@@ -8,11 +8,11 @@
 
 | Category | Technology |
 |---|---|
-| Framework | Expo SDK 55, Expo Router v4 (file-based routing) |
+| Framework | Expo SDK 56, Expo Router v56 (file-based routing) |
 | Language | TypeScript (strict mode) |
 | Styling | Tailwind CSS v4 via **Uniwind** |
 | Component Library | **React Native Reusables** (shadcn/ui-style, built on `@rn-primitives`) |
-| Database | `expo-sqlite` v55 |
+| Database | `expo-sqlite` v56 |
 | Icons | `lucide-react-native` |
 | Animation | `react-native-reanimated` v4, `tw-animate-css` |
 | Keyboard | `react-native-keyboard-controller` |

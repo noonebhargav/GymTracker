@@ -1,5 +1,6 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import seedData from '@/lib/seed_data.json';
+import { formatLocalDate, mapJsDayToOur } from '@/lib/date-utils';
 
 const LBS_FACTOR = 2.205;
 
@@ -551,21 +552,17 @@ export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const formatDate = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const mapJsDay = (jsDay: number): number => (jsDay + 6) % 7;
-
   let streak = 0;
   const cursor = new Date(today);
   let gracedToday = false;
   // Safety bound: walk back at most ~3 years to avoid pathological loops on routines with very few scheduled days.
   for (let i = 0; i < 365 * 3; i++) {
     // Skip routine rest days only if a routine exists.
-    if (scheduledDays.size > 0 && !scheduledDays.has(mapJsDay(cursor.getDay()))) {
+    if (scheduledDays.size > 0 && !scheduledDays.has(mapJsDayToOur(cursor.getDay()))) {
       cursor.setDate(cursor.getDate() - 1);
       continue;
     }
-    const ds = formatDate(cursor);
+    const ds = formatLocalDate(cursor);
     if (loggedSet.has(ds)) {
       streak++;
     } else if (!gracedToday && cursor.getTime() === today.getTime()) {

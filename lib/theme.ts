@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme } from 'expo-router';
+import { useUniwind } from 'uniwind';
 
 type Theme = typeof DarkTheme;
 
@@ -28,6 +29,14 @@ export const THEME = {
     border: 'rgba(255,255,255,0.07)',
   },
 };
+
+// Resolved theme palette for the current Uniwind theme. Avoids repeating the
+// `isDark ? THEME.dark.* : THEME.light.*` branch in every component.
+export function useThemeColors() {
+  const { theme } = useUniwind();
+  const isDark = theme === 'dark';
+  return { isDark, colors: isDark ? THEME.dark : THEME.light };
+}
 
 export const NAV_THEME: Record<'light' | 'dark', Theme> = {
   light: {

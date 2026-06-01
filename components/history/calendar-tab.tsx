@@ -8,6 +8,7 @@ import {
   displayWeight,
   type DayAggregateRow,
 } from '@/lib/database';
+import { mapJsDayToOur } from '@/lib/date-utils';
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -34,7 +35,7 @@ function isFuture(ds: string, today: string): boolean {
 function getMonthGrid(y: number, m: number): (number | null)[][] {
   const firstDay = new Date(y, m, 1).getDay();
   const totalDays = daysInMonth(y, m);
-  const offset = (firstDay + 6) % 7;
+  const offset = mapJsDayToOur(firstDay);
   const grid: (number | null)[][] = [];
   let week: (number | null)[] = [];
   for (let i = 0; i < offset; i++) week.push(null);

@@ -21,6 +21,7 @@ import {
 import { toGoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
 import { useToday } from '@/lib/use-today';
+import { mapJsDayToOur } from '@/lib/date-utils';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
@@ -43,11 +44,6 @@ const DEFAULTS: Record<string, string> = {
 
 const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
-
-function mapJsDayToOur(jsDay: number): number {
-  return (jsDay + 6) % 7;
-}
-
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 

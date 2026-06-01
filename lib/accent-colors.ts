@@ -9,6 +9,8 @@ export type AccentColor = {
   dark: { primary: string; primaryHex: string; ring: string };
 };
 
+export const DEFAULT_ACCENT_KEY = 'lime';
+
 export const ACCENT_COLORS: AccentColor[] = [
   {
     name: 'Electric Lime',
