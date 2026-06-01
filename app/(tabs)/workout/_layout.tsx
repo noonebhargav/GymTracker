@@ -10,7 +10,6 @@ export default function WorkoutLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="[tab]" />
       <Stack.Screen name="[tab]/[id]" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
