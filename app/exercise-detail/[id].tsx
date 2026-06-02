@@ -58,7 +58,7 @@ export default function ExerciseDetailModal() {
       <ScrollView className="flex-1">
         {/* Hero illustration */}
         {gifSource && (
-          <View className="mx-4 mt-2 mb-4 rounded-[20px] py-8 items-center overflow-hidden bg-card border border-border">
+          <View className="mx-4 mt-2 mb-4 rounded-[20px] py-8 items-center overflow-hidden bg-white border border-border">
             <Image source={gifSource} className="w-48 h-48" resizeMode="contain" />
           </View>
         )}
