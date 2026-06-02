@@ -7,11 +7,10 @@ import { setAccent } from '@/lib/accent-store';
 import { ThemeProvider, Stack } from 'expo-router';
 import { PortalHost } from '@rn-primitives/portal';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Uniwind } from 'uniwind';
 import * as SystemUI from 'expo-system-ui';
-import { View } from 'react-native';
+import { View, StatusBar } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -32,7 +31,7 @@ function AccentGate({ children }: { children: ReactNode }) {
       }
       applyAccentColor(accent);
       const color = ACCENT_COLORS.find((c) => c.key === accent) ?? DEFAULT_ACCENT;
-      setAccent(color.swatchHex);
+      setAccent(color.key);
       setLoaded(true);
     })();
   }, [db]);
@@ -52,11 +51,14 @@ export default function RootLayout() {
     SystemUI.setBackgroundColorAsync(bgColor);
   }, [bgColor]);
 
+  useEffect(() => {
+    StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
+  }, [isDark]);
+
   return (
     <ThemeProvider value={NAV_THEME[isDark ? 'dark' : 'light']}>
       <SQLiteProvider databaseName="gymtracker.db" onInit={initAndSeedDatabase}>
         <AccentGate>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
           <Stack screenOptions={{ contentStyle: { backgroundColor: bgColor } }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="exercise-detail/[id]" options={{ presentation: 'modal', headerShown: false }} />

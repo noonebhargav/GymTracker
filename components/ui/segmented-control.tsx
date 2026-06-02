@@ -10,46 +10,6 @@ function selectWithHaptic(current: string, next: string, onChange: (v: string) =
   onChange(next);
 }
 
-export function Segmented({
-  options,
-  value,
-  onChange,
-  className,
-}: {
-  options: Option[];
-  value: string;
-  onChange: (v: string) => void;
-  className?: string;
-}) {
-  return (
-    <View className={`flex-row bg-muted rounded-lg p-0.5 ${className ?? ''}`}>
-      {options.map((opt) => {
-        const active = value === opt.key;
-        return (
-          <Pressable
-            key={opt.key}
-            onPress={() => selectWithHaptic(value, opt.key, onChange)}
-            className={`flex-1 h-10 rounded-md items-center justify-center ${
-              active ? 'bg-background shadow-sm' : ''
-            }`}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            aria-label={opt.label}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                active ? 'text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 export function SegmentedControl({
   label,
   description,

@@ -1,41 +1,20 @@
 import { View, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getSetting, getWorkoutDateRange } from '@/lib/database';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { CalendarTab } from '@/components/history/calendar-tab';
 import { SummaryTab } from '@/components/history/summary-tab';
 import { InsightsTab } from '@/components/history/insights-tab';
-import { Segmented } from '@/components/ui/segmented-control';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToday } from '@/lib/use-today';
 
 type Mode = 'calendar' | 'summary' | 'insights';
-
-function pad(n: number): string {
-  return n.toString().padStart(2, '0');
-}
-
-function getMondayOfWeek(ds: string): string {
-  const d = new Date(ds + 'T00:00:00');
-  const day = d.getDay();
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function addWeeks(dateStr: string, weeks: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + weeks * 7);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function formatMonthYear(y: number, m: number): string {
   return new Date(y, m).toLocaleDateString('en-US', {
@@ -44,30 +23,15 @@ function formatMonthYear(y: number, m: number): string {
   });
 }
 
-function formatWindowLabel(windowEndDate: string): string {
-  const end = new Date(windowEndDate + 'T00:00:00');
-  const start = new Date(end);
-  start.setDate(start.getDate() - 69);
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  return `${start.toLocaleDateString('en-US', opts).toUpperCase()} – ${end.toLocaleDateString('en-US', opts).toUpperCase()}`;
-}
-
 export default function HistoryTab() {
   const db = useSQLiteContext();
   const today = useToday();
   const [mode, setMode] = useState<Mode>('calendar');
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
-  const [windowEndDate, setWindowEndDate] = useState(today);
   const [dateRange, setDateRange] = useState<{ first: string; last: string } | null>(null);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [loaded, setLoaded] = useState(false);
-
-  const prevTodayRef = useRef(today);
-  useEffect(() => {
-    setWindowEndDate((prev) => (prev === prevTodayRef.current ? today : prev));
-    prevTodayRef.current = today;
-  }, [today]);
 
   const loadMeta = useCallback(async () => {
     const [range, wu] = await Promise.all([
@@ -101,28 +65,6 @@ export default function HistoryTab() {
     );
   }, [currentYear, currentMonth, today]);
 
-  const canGoPrevWindow = useMemo(() => {
-    if (!dateRange?.first) return false;
-    return dateRange.first < addDays(windowEndDate, -69);
-  }, [windowEndDate, dateRange]);
-
-  const canGoNextWindow = useMemo(() => {
-    return windowEndDate < today;
-  }, [windowEndDate, today]);
-
-  // Snap once: when there are fewer than 10 weeks of data, place the first logged
-  // week at W1 so data fills from the left with no empty bars on the left side.
-  // Guarded so it never clobbers a window the user has manually navigated to.
-  const didSnapRef = useRef(false);
-  useEffect(() => {
-    if (didSnapRef.current) return;
-    if (!dateRange?.first) return;
-    didSnapRef.current = true;
-    if (dateRange.first >= addDays(today, -69)) {
-      setWindowEndDate(addDays(getMondayOfWeek(dateRange.first), 69));
-    }
-  }, [dateRange?.first, today]);
-
   const goToPrevMonth = useCallback(() => {
     if (currentMonth === 0) {
       setCurrentYear((y) => y - 1);
@@ -141,28 +83,17 @@ export default function HistoryTab() {
     }
   }, [currentMonth]);
 
-  const goToPrevWindow = useCallback(() => {
-    setWindowEndDate((d) => addWeeks(d, -10));
-  }, []);
-
-  const goToNextWindow = useCallback(() => {
-    setWindowEndDate((d) => {
-      const next = addWeeks(d, 10);
-      return next > today ? today : next;
-    });
-  }, [today]);
-
   if (!loaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (!dateRange) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-8">
+      <ScreenWrapper className="items-center justify-center px-8">
         <Icon as={Clock} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
         <Text className="text-base font-medium text-foreground text-center mb-1">
           No workouts logged yet
@@ -180,54 +111,33 @@ export default function HistoryTab() {
             Go to Workout
           </Text>
         </Pressable>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Segmented control */}
-      <Segmented
-        className="mx-4 mt-3"
-        options={[
-          { key: 'calendar', label: 'Calendar' },
-          { key: 'summary', label: 'Summary' },
-          { key: 'insights', label: 'Insights' },
-        ]}
+    <ScreenWrapper>
+      <Tabs
         value={mode}
-        onChange={(v) => setMode(v as Mode)}
-      />
+        onValueChange={(v) => {
+          Haptics.selectionAsync().catch(() => {});
+          setMode(v as Mode);
+        }}
+        className="flex-1">
 
-      {/* Navigator */}
-      {mode === 'insights' ? (
-        <View className="flex-row items-center justify-between px-4 py-2">
-          <Pressable
-            onPress={goToPrevWindow}
-            disabled={!canGoPrevWindow}
-            className="p-3"
-            aria-label="Previous window"
-          >
-            <Icon
-              as={ChevronLeft}
-              className={`size-5 ${canGoPrevWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-          <Text className="text-sm font-semibold text-foreground">
-            {formatWindowLabel(windowEndDate)}
-          </Text>
-          <Pressable
-            onPress={goToNextWindow}
-            disabled={!canGoNextWindow}
-            className="p-3"
-            aria-label="Next window"
-          >
-            <Icon
-              as={ChevronRight}
-              className={`size-5 ${canGoNextWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-        </View>
-      ) : (
+        <TabsList className="mx-auto mt-3">
+          <TabsTrigger value="calendar" variant="primary">
+            <Text>Calendar</Text>
+          </TabsTrigger>
+          <TabsTrigger value="summary" variant="primary">
+            <Text>Summary</Text>
+          </TabsTrigger>
+          <TabsTrigger value="insights" variant="primary">
+            <Text>Insights</Text>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Shared month switcher — drives all three tabs */}
         <View className="flex-row items-center justify-between px-4 py-2">
           <Pressable
             onPress={goToPrevMonth}
@@ -255,18 +165,19 @@ export default function HistoryTab() {
             />
           </Pressable>
         </View>
-      )}
 
-      {/* Tab content */}
-      {mode === 'calendar' && (
-        <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} today={today} />
-      )}
-      {mode === 'summary' && (
-        <SummaryTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />
-      )}
-      {mode === 'insights' && (
-        <InsightsTab windowEndDate={windowEndDate} weightUnit={weightUnit} />
-      )}
-    </View>
+        <TabsContent value="calendar" className="flex-1">
+          <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} today={today} />
+        </TabsContent>
+
+        <TabsContent value="summary" className="flex-1">
+          <SummaryTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />
+        </TabsContent>
+
+        <TabsContent value="insights" className="flex-1">
+          <InsightsTab year={currentYear} month={currentMonth} today={today} weightUnit={weightUnit} />
+        </TabsContent>
+      </Tabs>
+    </ScreenWrapper>
   );
 }

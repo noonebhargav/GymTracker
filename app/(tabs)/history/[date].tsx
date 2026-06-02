@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getDayWorkoutDetail, getSetting, displayWeight, type DayWorkoutDetailRow } from '@/lib/database';
 import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
@@ -90,24 +91,24 @@ export default function HistoryDateDetail() {
 
   if (!loaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (detail.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-8">
+      <ScreenWrapper className="items-center justify-center px-8">
         <Text className="text-base text-muted-foreground text-center">
           No workout data for this date
         </Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-3 mr-2" aria-label="Go back">
           <Icon as={ArrowLeft} className="size-5 text-foreground" />
@@ -204,6 +205,6 @@ export default function HistoryDateDetail() {
           );
         })}
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }

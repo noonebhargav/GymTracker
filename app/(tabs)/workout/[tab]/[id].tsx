@@ -1,10 +1,11 @@
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import {
   getExerciseById,
   getSetting,
@@ -46,6 +47,30 @@ const DEFAULTS: Record<string, string> = {
 
 type SetValues = { weight: number; reps: number };
 
+// Build the pending set rows for a not-yet-done exercise: prefer the last
+// workout's sets, repeat the last one to fill the requested count, and fall back
+// to the defaults when there's no history. Shared by mount + focus refresh.
+function buildPendingSets(
+  lastSets: { weight: number; reps: number }[],
+  dsNum: number,
+  dwKg: number,
+  drNum: number,
+  unit: 'lbs' | 'kg',
+): SetValues[] {
+  const sets: SetValues[] = [];
+  for (let i = 0; i < dsNum; i++) {
+    if (i < lastSets.length) {
+      sets.push({ weight: displayWeight(lastSets[i].weight, unit), reps: lastSets[i].reps });
+    } else if (lastSets.length > 0) {
+      const last = lastSets[lastSets.length - 1];
+      sets.push({ weight: displayWeight(last.weight, unit), reps: last.reps });
+    } else {
+      sets.push({ weight: displayWeight(dwKg, unit), reps: drNum });
+    }
+  }
+  return sets;
+}
+
 export default function ExerciseSetEditor() {
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ tab: string; id: string }>();
@@ -55,13 +80,14 @@ export default function ExerciseSetEditor() {
   const [loaded, setLoaded] = useState(false);
   const [defaultWeight, setDefaultWeight] = useState(20);
   const [defaultReps, setDefaultReps] = useState(10);
+  const [defaultSets, setDefaultSets] = useState(3);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [setValues, setSetValues] = useState<SetValues[]>([]);
   const [initialSetValues, setInitialSetValues] = useState<SetValues[]>([]);
   const [isDone, setIsDone] = useState(false);
   const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
   const [prWeight, setPrWeight] = useState<number | null>(null);
-  const accentHex = useAccentHex() ?? '#d8fe3d';
+  const accentHex = useAccentHex();
   const { bottom } = useSafeAreaInsets();
 
   const today = useToday();
@@ -96,6 +122,7 @@ export default function ExerciseSetEditor() {
       const resolvedUnit = (wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
       setDefaultWeight(displayWeight(dwKg, resolvedUnit));
       setDefaultReps(drNum);
+      setDefaultSets(dsNum);
       setWeightUnit(resolvedUnit);
 
       const done = new Set(todayLogs.map((r) => r.exercise_id)).has(exerciseId);
@@ -117,17 +144,7 @@ export default function ExerciseSetEditor() {
         });
       } else {
         getLastWorkoutSets(db, exerciseId).then((lastSets) => {
-          const sets: SetValues[] = [];
-          for (let i = 0; i < dsNum; i++) {
-            if (i < lastSets.length) {
-              sets.push({ weight: displayWeight(lastSets[i].weight, resolvedUnit), reps: lastSets[i].reps });
-            } else if (lastSets.length > 0) {
-              const last = lastSets[lastSets.length - 1];
-              sets.push({ weight: displayWeight(last.weight, resolvedUnit), reps: last.reps });
-            } else {
-              sets.push({ weight: displayWeight(dwKg, resolvedUnit), reps: drNum });
-            }
-          }
+          const sets = buildPendingSets(lastSets, dsNum, dwKg, drNum, resolvedUnit);
           setSetValues(sets);
           setInitialSetValues([...sets]);
           setLoaded(true);
@@ -135,6 +152,55 @@ export default function ExerciseSetEditor() {
       }
     });
   }, [db, exerciseId, today]);
+
+  // The weight unit and the sets/weight/reps defaults can be changed in Settings
+  // while this screen stays mounted (it's a different tab). Re-read them on focus
+  // so the open set editor reflects the change without a remount.
+  useFocusEffect(
+    useCallback(() => {
+      if (!loaded) return;
+      Promise.all([
+        getSetting(db, 'weight_unit'),
+        getSetting(db, 'default_sets'),
+        getSetting(db, 'default_weight'),
+        getSetting(db, 'default_reps'),
+      ]).then(([wu, ds, dw, dr]) => {
+        const newUnit = (wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
+        const dsNum = Number(ds ?? DEFAULTS.default_sets);
+        const dwKg = Number(dw ?? DEFAULTS.default_weight);
+        const drNum = Number(dr ?? DEFAULTS.default_reps);
+
+        const unitChanged = newUnit !== weightUnit;
+        const defaultsChanged =
+          dsNum !== defaultSets || drNum !== defaultReps || dwKg !== toKg(defaultWeight, weightUnit);
+        if (!unitChanged && !defaultsChanged) return;
+
+        // Keep the latest defaults (used by addSet + the ruler) and unit in sync.
+        setDefaultSets(dsNum);
+        setDefaultReps(drNum);
+        setDefaultWeight(displayWeight(dwKg, newUnit));
+        setWeightUnit(newUnit);
+
+        const convert = (v: number) => displayWeight(toKg(v, weightUnit), newUnit);
+
+        // A pristine (untouched) pending editor re-populates from the new defaults;
+        // logged (done) or edited (dirty) rows are preserved and only reconverted.
+        // buildPendingSets uses newUnit, so a concurrent unit change folds in here.
+        // (prWeight is null for a not-done editor, so it never needs reconverting here.)
+        if (!isDone && !isDirty && defaultsChanged) {
+          getLastWorkoutSets(db, exerciseId).then((lastSets) => {
+            const sets = buildPendingSets(lastSets, dsNum, dwKg, drNum, newUnit);
+            setSetValues(sets);
+            setInitialSetValues([...sets]);
+          });
+        } else if (unitChanged) {
+          setSetValues((prev) => prev.map((s) => ({ weight: convert(s.weight), reps: s.reps })));
+          setInitialSetValues((prev) => prev.map((s) => ({ weight: convert(s.weight), reps: s.reps })));
+          setPrWeight((prev) => (prev !== null ? convert(prev) : null));
+        }
+      });
+    }, [db, loaded, weightUnit, isDone, isDirty, defaultSets, defaultReps, defaultWeight, exerciseId])
+  );
 
   const updateSetValue = useCallback((idx: number, field: 'weight' | 'reps', value: number) => {
     setSetValues((prev) => {
@@ -203,9 +269,9 @@ export default function ExerciseSetEditor() {
 
   if (!loaded) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
+      <ScreenWrapper className="items-center justify-center">
         <Text className="text-muted-foreground">Loading...</Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 
@@ -215,7 +281,7 @@ export default function ExerciseSetEditor() {
   const activeField = rulerWheel?.field ?? null;
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Header */}
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable onPress={() => router.back()} className="p-3" aria-label="Back">
@@ -386,6 +452,6 @@ export default function ExerciseSetEditor() {
           onDone={() => setRulerWheel(null)}
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from '@/lib/exercise-groups';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
 import { ArrowLeft, Search } from 'lucide-react-native';
@@ -83,7 +84,7 @@ export default function FilterPage() {
   const label = resolved?.label ?? filter;
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable
           onPress={() => router.back()}
@@ -126,6 +127,6 @@ export default function FilterPage() {
           }}
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

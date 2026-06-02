@@ -23,6 +23,8 @@ import { capitalizeWords } from '@/lib/utils';
 import { useToday } from '@/lib/use-today';
 import { mapJsDayToOur } from '@/lib/date-utils';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -42,15 +44,18 @@ const DEFAULTS: Record<string, string> = {
   queue_enabled: 'false',
 };
 
-const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
-const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
+const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 16, paddingVertical: 8 } as const;
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function SessionPill({ label }: { label: string }) {
   return (
-    <View className="bg-primary rounded-full px-2.5 py-1">
-      <Text className="text-[11px] font-semibold text-primary-foreground" numberOfLines={1}>
+    <View className="bg-primary rounded-full px-2.5 py-1 max-w-[160px]">
+      <Text
+        className="text-[11px] font-semibold text-primary-foreground"
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
         {label}
       </Text>
     </View>
@@ -225,6 +230,16 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     return t;
   }, [todayParts]);
 
+  // If the selected body-part tab was removed from today's routine (edited on the
+  // Routine screen), it's no longer in `tabs` — fall back to Recent so the stale
+  // exercise list for the removed part doesn't linger.
+  useEffect(() => {
+    if (!loaded) return;
+    if (!tabs.some((t) => t.key === selectedTab)) {
+      router.setParams({ tab: 'recent' });
+    }
+  }, [loaded, tabs, selectedTab]);
+
   // Parts shown today only because Queue mode rolled them over from yesterday's
   // unfinished routine (i.e. not also scheduled for today). Used to badge their chips.
   const carryoverParts = useMemo(() => {
@@ -241,7 +256,8 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [queueEnabled, routines, todayIndex, loggedYesterdayParts]);
 
   const navigateToTab = useCallback((tabKey: string) => {
-    setSearchText('');
+    // Keep the search query when switching tabs — the component stays mounted, so
+    // the user's text (and results) persist across body-part filters.
     router.setParams({ tab: tabKey === 'recent' ? 'recent' : tabKey });
   }, []);
 
@@ -264,14 +280,14 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   if (!loaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
       {/* Day name + streak header */}
       <View className="px-4 pt-3 pb-1">
         <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest">
@@ -317,44 +333,37 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       </View>
 
       {/* Horizontal filter tabs — below search */}
-      <View style={TAB_BAR_WRAPPER_STYLE}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="border-b border-border"
-          contentContainerStyle={TAB_BAR_CONTENT_STYLE}
-        >
-          {tabs.map((t) => {
-            const active = t.key === selectedTab;
-            const isCarryover = carryoverParts.has(t.key);
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => navigateToTab(t.key)}
-                className={`h-9 px-4 items-center justify-center rounded-full ${
-                  active
-                    ? 'bg-primary border border-primary'
-                    : 'bg-secondary active:bg-secondary/80'
-                }`}
-                aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    active ? 'text-primary-foreground' : 'text-foreground'
-                  }`}
-                >
-                  {t.label}
-                </Text>
-                {isCarryover && (
-                  <View
-                    className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <Tabs value={selectedTab} onValueChange={navigateToTab}>
+        <View className="border-b border-border">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={TAB_BAR_CONTENT_STYLE}
+          >
+            <TabsList variant="pills">
+              {tabs.map((t) => {
+                const active = t.key === selectedTab;
+                const isCarryover = carryoverParts.has(t.key);
+                return (
+                  <TabsTrigger
+                    key={t.key}
+                    value={t.key}
+                    variant="pill"
+                    aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
+                  >
+                    <Text>{t.label}</Text>
+                    {isCarryover && (
+                      <View
+                        className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
+                      />
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </ScrollView>
+        </View>
+      </Tabs>
 
       {/* Today's session card */}
       {completedToday.size > 0 && (
@@ -413,6 +422,6 @@ export function WorkoutScreen({ tab }: { tab: string }) {
           keyboardShouldPersistTaps="handled"
         />
       )}
-    </View>
+    </ScreenWrapper>
   );
 }

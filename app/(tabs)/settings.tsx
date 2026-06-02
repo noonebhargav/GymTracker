@@ -1,4 +1,4 @@
-import { View, Pressable, ScrollView, TextInput, ActivityIndicator, InteractionManager, Alert } from 'react-native';
+import { View, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -14,12 +14,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { RulerWheel } from '@/components/ui/ruler-wheel';
+import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { getSetting, setSetting, resetAllData, displayWeight, toKg } from '@/lib/database';
 import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { Uniwind } from 'uniwind';
+import { Uniwind, useUniwind } from 'uniwind';
 import {
   ChevronLeft,
   ChevronRight,
@@ -171,12 +172,16 @@ function AccentRow({
   selected: string;
   onChange: (key: string) => void;
 }) {
+  // Show each swatch in the color that's actually applied for the current theme
+  // (light variants are deeper) so the picker matches what the user sees.
+  const { theme } = useUniwind();
   return (
     <View className="px-4 py-3 border-b border-border">
       <Text className="text-base text-foreground mb-3">Accent</Text>
       <View className="flex-row flex-wrap gap-3">
         {ACCENT_COLORS.map((color) => {
           const isSelected = selected === color.key;
+          const swatch = theme === 'dark' ? color.dark.primary : color.light.primary;
           return (
             <Pressable
               key={color.key}
@@ -184,7 +189,7 @@ function AccentRow({
               className={`size-11 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
-              style={{ backgroundColor: color.swatchHex }}
+              style={{ backgroundColor: swatch }}
               aria-label={`${color.name} accent${isSelected ? ' selected' : ''}`}
             />
           );
@@ -259,7 +264,7 @@ export default function SettingsTab() {
     // Dismiss the dialog immediately so it isn't blocked by the delete, then run the
     // wipe + restore-defaults after the dismissal interaction settles.
     setResetDialogOpen(false);
-    InteractionManager.runAfterInteractions(async () => {
+    requestAnimationFrame(async () => {
       try {
         await resetAllData(db);
 
@@ -276,8 +281,7 @@ export default function SettingsTab() {
 
         Uniwind.setTheme('system');
         applyAccentColor('lime');
-        const lime = ACCENT_COLORS.find((c) => c.key === 'lime');
-        setAccent(lime?.swatchHex);
+        setAccent('lime');
       } catch {
         Alert.alert('Error', 'Could not reset data. Please try again.');
       }
@@ -286,19 +290,19 @@ export default function SettingsTab() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <ScreenWrapper className="items-center justify-center">
         <ActivityIndicator />
-      </View>
+      </ScreenWrapper>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-8">
+      <ScreenWrapper className="items-center justify-center px-8">
         <Text className="text-base text-muted-foreground text-center">
           Could not load settings. Try restarting the app.
         </Text>
-      </View>
+      </ScreenWrapper>
     );
   }
 
@@ -309,7 +313,7 @@ export default function SettingsTab() {
   const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
 
   return (
-    <View className="flex-1 bg-background">
+    <ScreenWrapper>
     <ScrollView
       className="flex-1"
       contentInsetAdjustmentBehavior="automatic"
@@ -334,7 +338,7 @@ export default function SettingsTab() {
       />
       <SegmentedControl
         label="Mode"
-        description="Queue: missed body parts roll over to today. Skip: only today's scheduled parts show up."
+        description={"Skip: only today's scheduled parts show up.\nQueue: missed body parts roll over to today."}
         options={[
           { key: 'false', label: 'Skip' },
           { key: 'true', label: 'Queue' },
@@ -398,7 +402,7 @@ export default function SettingsTab() {
           persistStr('theme', v);
           const key = v as 'light' | 'dark' | 'system';
           Uniwind.setTheme(key);
-          InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
             applyAccentColor(accentColor);
           });
         }}
@@ -408,11 +412,10 @@ export default function SettingsTab() {
         onChange={(key) => {
           setAccentColor(key);
           persistStr('accent_color', key);
-          InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => {
             applyAccentColor(key);
           });
-          const color = ACCENT_COLORS.find((c) => c.key === key);
-          setAccent(color ? color.swatchHex : undefined);
+          setAccent(key);
         }}
       />
 
@@ -473,6 +476,6 @@ export default function SettingsTab() {
         onDone={() => setRulerOpen(null)}
       />
     )}
-    </View>
+    </ScreenWrapper>
   );
 }

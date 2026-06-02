@@ -6,12 +6,14 @@ const LBS_FACTOR = 2.205;
 
 export function displayWeight(kg: number, unit: 'lbs' | 'kg'): number {
   if (unit === 'kg') return Math.round(kg / 2.5) * 2.5;
-  return Math.round((kg * LBS_FACTOR) / 5) * 5;
+  return Math.round((kg * LBS_FACTOR) / 2.5) * 2.5;
 }
 
 export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
   if (fromUnit === 'kg') return value;
-  return Math.round((value / LBS_FACTOR) / 2.5) * 2.5;
+  // Store exact kg; display-time snapping (see displayWeight) keeps lbs on a
+  // 2.5-lb grid without losing precision on the round trip.
+  return value / LBS_FACTOR;
 }
 
 type ExerciseSeed = {
