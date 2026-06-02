@@ -256,7 +256,8 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   }, [queueEnabled, routines, todayIndex, loggedYesterdayParts]);
 
   const navigateToTab = useCallback((tabKey: string) => {
-    setSearchText('');
+    // Keep the search query when switching tabs — the component stays mounted, so
+    // the user's text (and results) persist across body-part filters.
     router.setParams({ tab: tabKey === 'recent' ? 'recent' : tabKey });
   }, []);
 
