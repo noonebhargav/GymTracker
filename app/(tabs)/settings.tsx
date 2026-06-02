@@ -281,8 +281,7 @@ export default function SettingsTab() {
 
         Uniwind.setTheme('system');
         applyAccentColor('lime');
-        const lime = ACCENT_COLORS.find((c) => c.key === 'lime');
-        setAccent(lime?.swatchHex);
+        setAccent('lime');
       } catch {
         Alert.alert('Error', 'Could not reset data. Please try again.');
       }
@@ -416,8 +415,7 @@ export default function SettingsTab() {
           requestAnimationFrame(() => {
             applyAccentColor(key);
           });
-          const color = ACCENT_COLORS.find((c) => c.key === key);
-          setAccent(color ? color.swatchHex : undefined);
+          setAccent(key);
         }}
       />
 

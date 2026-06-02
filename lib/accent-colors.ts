@@ -3,9 +3,6 @@ import { Uniwind } from 'uniwind';
 export type AccentColor = {
   name: string;
   key: string;
-  // Bright brand color used for the settings picker swatch and in-app accent hex
-  // (tab indicator, ruler wheel, charts). Same in both themes.
-  swatchHex: string;
   // Per-theme primary fill + its foreground text + focus ring. Light variants are
   // deepened so accent text/tints/chips keep contrast against the light background
   // (#f6f6f3 / #ffffff); dark variants stay bright against the dark background.
@@ -19,35 +16,30 @@ export const ACCENT_COLORS: AccentColor[] = [
   {
     name: 'Electric Lime',
     key: 'lime',
-    swatchHex: '#d8fe3d',
     light: { primary: '#5b8c00', foreground: '#ffffff', ring: '#4a7000' },
     dark:  { primary: '#d8fe3d', foreground: '#0a0b0d', ring: '#b8d820' },
   },
   {
     name: 'Alarm Red',
     key: 'red',
-    swatchHex: '#ff5868',
     light: { primary: '#d92d43', foreground: '#ffffff', ring: '#b81f33' },
     dark:  { primary: '#ff5868', foreground: '#ffffff', ring: '#e04050' },
   },
   {
     name: 'Electric Blue',
     key: 'blue',
-    swatchHex: '#5ec3ff',
     light: { primary: '#0c84d6', foreground: '#ffffff', ring: '#0a6cb0' },
     dark:  { primary: '#5ec3ff', foreground: '#0a0b0d', ring: '#3ea0e0' },
   },
   {
     name: 'Dynamo Orange',
     key: 'orange',
-    swatchHex: '#ff8a3d',
     light: { primary: '#c25e15', foreground: '#ffffff', ring: '#a8500f' },
     dark:  { primary: '#ff8a3d', foreground: '#0a0b0d', ring: '#e07020' },
   },
   {
     name: 'Ultra Violet',
     key: 'violet',
-    swatchHex: '#c476ff',
     light: { primary: '#7c3aed', foreground: '#ffffff', ring: '#6627d4' },
     dark:  { primary: '#c476ff', foreground: '#ffffff', ring: '#a050e0' },
   },

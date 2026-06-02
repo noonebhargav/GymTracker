@@ -62,7 +62,7 @@ export default function ExerciseSetEditor() {
   const [isDone, setIsDone] = useState(false);
   const [rulerWheel, setRulerWheel] = useState<{ setIdx: number; field: 'weight' | 'reps' } | null>(null);
   const [prWeight, setPrWeight] = useState<number | null>(null);
-  const accentHex = useAccentHex() ?? '#d8fe3d';
+  const accentHex = useAccentHex();
   const { bottom } = useSafeAreaInsets();
 
   const today = useToday();

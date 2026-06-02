@@ -57,7 +57,7 @@ export function RulerWheel({
   const steps = Math.round((max - min) / step);
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
-  const accentHex = useAccentHex() ?? '#d8fe3d';
+  const accentHex = useAccentHex();
   const { theme } = useUniwind();
   const isDark = theme === 'dark';
   const palette = isDark ? THEME.dark : THEME.light;

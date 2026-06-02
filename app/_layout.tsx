@@ -31,7 +31,7 @@ function AccentGate({ children }: { children: ReactNode }) {
       }
       applyAccentColor(accent);
       const color = ACCENT_COLORS.find((c) => c.key === accent) ?? DEFAULT_ACCENT;
-      setAccent(color.swatchHex);
+      setAccent(color.key);
       setLoaded(true);
     })();
   }, [db]);

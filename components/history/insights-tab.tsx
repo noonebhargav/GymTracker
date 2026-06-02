@@ -18,8 +18,6 @@ import { GOLD_STANDARD_GROUPS, toGoldStandardGroup } from '@/lib/exercise-groups
 import { capitalizeWords } from '@/lib/utils';
 import { useAccentHex } from '@/lib/accent-store';
 
-const FALLBACK_ACCENT = '#d8fe3d';
-
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const m = hex.replace('#', '');
   const v = m.length === 3
@@ -77,7 +75,7 @@ interface InsightsTabProps {
 
 export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps) {
   const db = useSQLiteContext();
-  const accentHex = useAccentHex() ?? FALLBACK_ACCENT;
+  const accentHex = useAccentHex();
   const accentRgb = useMemo(() => hexToRgb(accentHex), [accentHex]);
 
   // --- Chart weeks for the selected month ---
