@@ -50,8 +50,12 @@ const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 
 function SessionPill({ label }: { label: string }) {
   return (
-    <View className="bg-primary rounded-full px-2.5 py-1">
-      <Text className="text-[11px] font-semibold text-primary-foreground" numberOfLines={1}>
+    <View className="bg-primary rounded-full px-2.5 py-1 max-w-[160px]">
+      <Text
+        className="text-[11px] font-semibold text-primary-foreground"
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
         {label}
       </Text>
     </View>
