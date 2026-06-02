@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Pressable, ScrollView, Image } from 'react-native';
@@ -136,6 +136,25 @@ export default function ExerciseSetEditor() {
       }
     });
   }, [db, exerciseId, today]);
+
+  // The weight unit can be changed in Settings while this screen stays mounted
+  // (it's a different tab). Re-read it on focus and reconvert the displayed
+  // numbers so the open set editor reflects the change without a remount.
+  useFocusEffect(
+    useCallback(() => {
+      if (!loaded) return;
+      getSetting(db, 'weight_unit').then((wu) => {
+        const newUnit = (wu as 'lbs' | 'kg') ?? (DEFAULTS.weight_unit as 'lbs' | 'kg');
+        if (newUnit === weightUnit) return;
+        const convert = (v: number) => displayWeight(toKg(v, weightUnit), newUnit);
+        setSetValues((prev) => prev.map((s) => ({ weight: convert(s.weight), reps: s.reps })));
+        setInitialSetValues((prev) => prev.map((s) => ({ weight: convert(s.weight), reps: s.reps })));
+        setDefaultWeight((prev) => convert(prev));
+        setPrWeight((prev) => (prev !== null ? convert(prev) : null));
+        setWeightUnit(newUnit);
+      });
+    }, [db, loaded, weightUnit])
+  );
 
   const updateSetValue = useCallback((idx: number, field: 'weight' | 'reps', value: number) => {
     setSetValues((prev) => {
