@@ -230,6 +230,16 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     return t;
   }, [todayParts]);
 
+  // If the selected body-part tab was removed from today's routine (edited on the
+  // Routine screen), it's no longer in `tabs` — fall back to Recent so the stale
+  // exercise list for the removed part doesn't linger.
+  useEffect(() => {
+    if (!loaded) return;
+    if (!tabs.some((t) => t.key === selectedTab)) {
+      router.setParams({ tab: 'recent' });
+    }
+  }, [loaded, tabs, selectedTab]);
+
   // Parts shown today only because Queue mode rolled them over from yesterday's
   // unfinished routine (i.e. not also scheduled for today). Used to badge their chips.
   const carryoverParts = useMemo(() => {
