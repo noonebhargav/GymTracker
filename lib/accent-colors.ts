@@ -20,7 +20,10 @@ export const ACCENT_COLORS: AccentColor[] = [
     name: 'Electric Lime',
     key: 'lime',
     swatchHex: '#d8fe3d',
-    light: { primary: '#5b8c00', foreground: '#ffffff', ring: '#4a7000' },
+    // Lime is so light that darkening it for text-contrast turns it green, which
+    // no longer matches the bright lime swatch. Keep it in the yellow-lime family
+    // (deepened just enough to read on white) with dark foreground like dark theme.
+    light: { primary: '#c4e600', foreground: '#0a0b0d', ring: '#a3c400' },
     dark:  { primary: '#d8fe3d', foreground: '#0a0b0d', ring: '#b8d820' },
   },
   {
