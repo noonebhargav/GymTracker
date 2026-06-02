@@ -22,8 +22,8 @@
       --color-card-foreground:      #0a0b0d;
       --color-popover:              #ffffff;
       --color-popover-foreground:   #0a0b0d;
-      --color-primary:              #d8fe3d;
-      --color-primary-foreground:   #0a0b0d;
+      --color-primary:              #5b8c00;
+      --color-primary-foreground:   #ffffff;
       --color-secondary:            #f3f3f0;
       --color-secondary-foreground: #0a0b0d;
       --color-muted:                #f3f3f0;
@@ -33,7 +33,7 @@
       --color-destructive:          #ff5868;
       --color-border:               rgba(0,0,0,0.07);
       --color-input:                rgba(0,0,0,0.10);
-      --color-ring:                 #d8fe3d;
+      --color-ring:                 #4a7000;
       --color-chart-1:              oklch(0.646 0.222 41.116);
       --color-chart-2:              oklch(0.6 0.118 184.704);
       --color-chart-3:              oklch(0.398 0.07 227.392);
@@ -41,12 +41,12 @@
       --color-chart-5:              oklch(0.769 0.188 70.08);
       --color-sidebar:              #ffffff;
       --color-sidebar-foreground:   #0a0b0d;
-      --color-sidebar-primary:      #d8fe3d;
-      --color-sidebar-primary-foreground: #0a0b0d;
+      --color-sidebar-primary:      #5b8c00;
+      --color-sidebar-primary-foreground: #ffffff;
       --color-sidebar-accent:       #f3f3f0;
       --color-sidebar-accent-foreground: #0a0b0d;
       --color-sidebar-border:       rgba(0,0,0,0.07);
-      --color-sidebar-ring:         #d8fe3d;
+      --color-sidebar-ring:         #4a7000;
       --color-danger:               #ff5868;
       --color-danger-soft:          #fff0f1;
       --color-success:              #16a34a;
