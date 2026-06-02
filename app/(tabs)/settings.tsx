@@ -20,7 +20,7 @@ import { ACCENT_COLORS, applyAccentColor } from '@/lib/accent-colors';
 import { setAccent } from '@/lib/accent-store';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { Uniwind } from 'uniwind';
+import { Uniwind, useUniwind } from 'uniwind';
 import {
   ChevronLeft,
   ChevronRight,
@@ -172,12 +172,16 @@ function AccentRow({
   selected: string;
   onChange: (key: string) => void;
 }) {
+  // Show each swatch in the color that's actually applied for the current theme
+  // (light variants are deeper) so the picker matches what the user sees.
+  const { theme } = useUniwind();
   return (
     <View className="px-4 py-3 border-b border-border">
       <Text className="text-base text-foreground mb-3">Accent</Text>
       <View className="flex-row flex-wrap gap-3">
         {ACCENT_COLORS.map((color) => {
           const isSelected = selected === color.key;
+          const swatch = theme === 'dark' ? color.dark.primary : color.light.primary;
           return (
             <Pressable
               key={color.key}
@@ -185,7 +189,7 @@ function AccentRow({
               className={`size-11 rounded-full ${
                 isSelected ? 'border-2 border-foreground' : 'border border-border'
               }`}
-              style={{ backgroundColor: color.swatchHex }}
+              style={{ backgroundColor: swatch }}
               aria-label={`${color.name} accent${isSelected ? ' selected' : ''}`}
             />
           );
