@@ -1,8 +1,8 @@
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Trophy } from 'lucide-react-native';
 import {
@@ -55,46 +55,67 @@ function formatShortDate(ds: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function buildWeeks(windowEndDate: string): string[] {
+// Mondays of every week that overlaps the given month (4–6 entries, ascending).
+function buildMonthWeeks(year: number, month: number): string[] {
+  const firstMonday = getMondayOfWeek(`${year}-${pad(month + 1)}-01`);
+  const lastDay = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
   const weeks: string[] = [];
-  for (let i = 9; i >= 0; i--) {
-    const monday = getMondayOfWeek(addDays(windowEndDate, -i * 7));
-    weeks.push(monday);
+  let m = firstMonday;
+  while (m <= lastDay) {
+    weeks.push(m);
+    m = addDays(m, 7);
   }
   return weeks;
 }
 
 interface InsightsTabProps {
-  windowEndDate: string;
+  year: number;
+  month: number;
+  today: string;
   weightUnit: 'lbs' | 'kg';
 }
 
-export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
+export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps) {
   const db = useSQLiteContext();
   const accentHex = useAccentHex() ?? FALLBACK_ACCENT;
   const accentRgb = useMemo(() => hexToRgb(accentHex), [accentHex]);
-  const windowStartDate = useMemo(() => addDays(windowEndDate, -69), [windowEndDate]);
-  const heatmapStart = useMemo(() => addDays(windowEndDate, -6), [windowEndDate]);
+
+  // --- Chart weeks for the selected month ---
+  const weeks = useMemo(() => buildMonthWeeks(year, month), [year, month]);
+  const chartStart = weeks[0];
+  const chartEnd = useMemo(() => addDays(weeks[weeks.length - 1], 6), [weeks]);
+  const monthStart = `${year}-${pad(month + 1)}-01`;
+  const monthEnd = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`;
+
+  // Which week's heatmap to show. null = default "last 7 days" from today.
+  const [selectedMonday, setSelectedMonday] = useState<string | null>(null);
+  useEffect(() => { setSelectedMonday(null); }, [year, month]);
+  const heatmapStart = selectedMonday ?? addDays(today, -6);
+  const heatmapEnd = selectedMonday ? addDays(selectedMonday, 6) : today;
 
   const [dailyAggs, setDailyAggs] = useState<DayAggregateRow[]>([]);
   const [bodyPartRows, setBodyPartRows] = useState<BodyPartAvgRow[]>([]);
   const [prRows, setPrRows] = useState<WindowPRRow[]>([]);
 
-  const load = useCallback(async () => {
-    const [aggs, bpAvgs, prs] = await Promise.all([
-      getMonthlyAggregates(db, windowStartDate, windowEndDate),
-      getBodyPartAvgWeights(db, heatmapStart, windowEndDate),
-      getWindowPRs(db, windowStartDate, windowEndDate),
+  const loadStats = useCallback(async () => {
+    const [aggs, prs] = await Promise.all([
+      getMonthlyAggregates(db, chartStart, chartEnd),
+      getWindowPRs(db, monthStart, monthEnd),
     ]);
     setDailyAggs(aggs);
-    setBodyPartRows(bpAvgs);
     setPrRows(prs);
-  }, [db, windowStartDate, windowEndDate, heatmapStart]);
+  }, [db, chartStart, chartEnd, monthStart, monthEnd]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const loadHeatmap = useCallback(async () => {
+    const bpAvgs = await getBodyPartAvgWeights(db, heatmapStart, heatmapEnd);
+    setBodyPartRows(bpAvgs);
+  }, [db, heatmapStart, heatmapEnd]);
 
-  // --- Chart data ---
-  const weeks = useMemo(() => buildWeeks(windowEndDate), [windowEndDate]);
+  // Two independent focus effects: each refetches on focus and only when its own
+  // inputs change (month range for stats, selected-week range for the heatmap),
+  // so a bar tap refetches the heatmap alone — never the stats.
+  useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
+  useFocusEffect(useCallback(() => { loadHeatmap(); }, [loadHeatmap]));
 
   const weekAvgs = useMemo(() => {
     const map = new Map<string, { totalWeight: number; count: number }>();
@@ -114,8 +135,15 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
   }, [dailyAggs, weeks]);
 
   const chartMax = useMemo(() => Math.max(...weekAvgs, 1), [weekAvgs]);
-  const lastWeekAvg = weekAvgs[9] ?? 0;
-  const prevWeekAvg = weekAvgs[8] ?? 0;
+  // Latest week in the month that has data drives the header number + delta.
+  const lastIdx = useMemo(() => {
+    for (let i = weekAvgs.length - 1; i >= 0; i--) {
+      if (weekAvgs[i] > 0) return i;
+    }
+    return -1;
+  }, [weekAvgs]);
+  const lastWeekAvg = lastIdx >= 0 ? weekAvgs[lastIdx] : 0;
+  const prevWeekAvg = lastIdx > 0 ? weekAvgs[lastIdx - 1] : 0;
   const delta = prevWeekAvg > 0 && lastWeekAvg > 0
     ? Math.round(((lastWeekAvg - prevWeekAvg) / prevWeekAvg) * 100)
     : null;
@@ -178,31 +206,44 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
           </View>
         </View>
 
-        {/* Bars */}
+        {/* Bars — tap to inspect that week's body parts */}
         <View className="flex-row items-end gap-1" style={{ height: 100 }}>
-          {weekAvgs.map((avg, i) => {
+          {weeks.map((mon, i) => {
+            const avg = weekAvgs[i];
             const hasData = avg > 0;
             const barHeight = hasData ? Math.max(4, (avg / chartMax) * 96) : 4;
+            const isSelected = selectedMonday === mon;
+            const dimmed = selectedMonday !== null && !isSelected;
             return (
-              <View key={i} className="flex-1 items-center justify-end" style={{ height: 100 }}>
+              <Pressable
+                key={mon}
+                onPress={() => setSelectedMonday((m) => (m === mon ? null : mon))}
+                className="flex-1 items-center justify-end"
+                style={{ height: 100 }}
+                aria-label={`Week of ${formatShortDate(mon)}`}
+              >
                 <View
                   style={{ height: barHeight, borderRadius: 3 }}
-                  className={`w-full ${hasData ? 'bg-primary' : 'bg-secondary'}`}
+                  className={`w-full ${
+                    hasData ? (dimmed ? 'bg-primary/40' : 'bg-primary') : 'bg-secondary'
+                  }`}
                 />
-              </View>
+              </Pressable>
             );
           })}
         </View>
 
-        {/* X-axis labels */}
+        {/* X-axis labels — week-start day of month */}
         <View className="flex-row mt-1">
-          {weeks.map((_, i) => (
-            <View key={i} className="flex-1 items-center">
-              {(i === 0 || i === 4 || i === 9) && (
-                <Text className="text-[9px] text-muted-foreground">
-                  W{i + 1}
-                </Text>
-              )}
+          {weeks.map((mon) => (
+            <View key={mon} className="flex-1 items-center">
+              <Text
+                className={`text-[9px] ${
+                  selectedMonday === mon ? 'text-foreground font-semibold' : 'text-muted-foreground'
+                }`}
+              >
+                {Number(mon.slice(-2))}
+              </Text>
             </View>
           ))}
         </View>
@@ -214,7 +255,11 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
           <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
             Body parts
           </Text>
-          <Text className="text-[10px] text-muted-foreground">Last 7 days</Text>
+          <Text className="text-[10px] text-muted-foreground">
+            {selectedMonday
+              ? `${formatShortDate(heatmapStart)} – ${formatShortDate(heatmapEnd)}`
+              : 'Last 7 days'}
+          </Text>
         </View>
 
         <View className="flex-row flex-wrap gap-2">
@@ -267,7 +312,7 @@ export function InsightsTab({ windowEndDate, weightUnit }: InsightsTabProps) {
             Personal Records
           </Text>
           <Text className="text-[10px] text-muted-foreground">
-            {formatShortDate(windowStartDate)} – {formatShortDate(windowEndDate)}
+            {formatShortDate(monthStart)} – {formatShortDate(monthEnd)}
           </Text>
         </View>
 

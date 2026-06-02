@@ -335,7 +335,7 @@ export default function SettingsTab() {
       />
       <SegmentedControl
         label="Mode"
-        description="Queue: missed body parts roll over to today. Skip: only today's scheduled parts show up."
+        description={"Skip: only today's scheduled parts show up.\nQueue: missed body parts roll over to today."}
         options={[
           { key: 'false', label: 'Skip' },
           { key: 'true', label: 'Queue' },
