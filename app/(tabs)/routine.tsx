@@ -7,9 +7,10 @@ import { GOLD_STANDARD_GROUPS } from '@/lib/exercise-groups';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState, useMemo } from 'react';
 import { useFocusEffect } from 'expo-router';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { CalendarClock, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 const DAYS = [
   { label: 'Mon', full: 'Monday', index: 0 },
@@ -21,11 +22,14 @@ const DAYS = [
   { label: 'Sun', full: 'Sunday', index: 6 },
 ];
 
-const DAY_SCROLL_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 12, gap: 10 } as const;
+function getTodayIndex(): number {
+  const day = new Date().getDay();
+  return day === 0 ? 6 : day - 1;
+}
 
 export default function RoutineTab() {
   const db = useSQLiteContext();
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState(String(getTodayIndex()));
   const [routines, setRoutines] = useState<Map<number, Set<string>>>(new Map());
 
   useFocusEffect(
@@ -61,10 +65,6 @@ export default function RoutineTab() {
     }
     return map;
   }, [routines]);
-
-  const handleDayPress = useCallback((dayIndex: number) => {
-    setSelectedDay((prev) => (prev === dayIndex ? null : dayIndex));
-  }, []);
 
   const toggleBodyPart = useCallback(
     async (dayIndex: number, bodyPart: string) => {
@@ -104,112 +104,92 @@ export default function RoutineTab() {
 
   return (
     <ScreenWrapper>
-    <ScrollView
-      className="flex-1"
-      contentInsetAdjustmentBehavior="automatic"
-    >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="border-b border-border"
-        contentContainerStyle={DAY_SCROLL_CONTENT_STYLE}
-      >
-        {DAYS.map((day) => {
-          const isSelected = selectedDay === day.index;
-          const hasAssignments = assignedCounts[day.index] > 0;
+      <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
+        <View className="border-b border-border">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+          >
+            <TabsList variant="pills">
+              {DAYS.map((day) => {
+                const isSelected = selectedDay === String(day.index);
+                const hasAssignments = assignedCounts[day.index] > 0;
+                // Third state: a day with assigned body parts that isn't the
+                // current selection gets a tinted fill + accent text.
+                const marked = !isSelected && hasAssignments;
 
-          return (
-            <View key={day.index} className="items-center gap-1.5">
-              <Pressable
-                onPress={() => handleDayPress(day.index)}
-                className={`size-12 rounded-full items-center justify-center sm:size-10 ${
-                  isSelected
-                    ? 'bg-primary border border-primary'
-                    : 'bg-muted border border-border active:bg-muted/80'
-                }`}
-                aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
-              >
-                <Text
-                  className={`text-sm font-semibold ${
-                    isSelected ? 'text-primary-foreground' : 'text-foreground'
-                  }`}
-                >
-                  {day.label}
-                </Text>
-              </Pressable>
-              {hasAssignments && !isSelected && (
-                <View className="size-1.5 rounded-full bg-primary" />
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      {selectedDay !== null && (
-        <Animated.View
-          key={selectedDay}
-          entering={FadeInDown.duration(250)}
-          exiting={FadeOutUp.duration(200)}
-          className="px-4 pt-4 pb-5 border-b border-border"
-        >
-          <Text className="text-lg font-semibold text-foreground mb-3">
-            {DAYS[selectedDay].full}
-          </Text>
-          <View className="flex-row flex-wrap">
-            {GOLD_STANDARD_GROUPS.map((group) => {
-              const state = getChipState(selectedDay, group);
-              return (
-                <Pressable
-                  key={group}
-                  onPress={() => toggleBodyPart(selectedDay, group)}
-                  className="w-1/2 p-2"
-                  aria-label={`Toggle ${group}`}
-                  accessibilityState={{ selected: state === 'selected' }}
-                  accessibilityRole="switch"
-                >
-                  <View
-                    className={`h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5 ${
-                      state === 'selected'
-                        ? 'bg-primary border border-primary'
-                        : state === 'covered'
-                          ? 'bg-primary/15 border border-primary/25'
-                          : 'bg-secondary border border-border active:bg-secondary/80'
-                    }`}
+                return (
+                  <TabsTrigger
+                    key={day.index}
+                    value={String(day.index)}
+                    variant="pill"
+                    className={marked ? 'bg-primary/15 border-primary/25' : undefined}
+                    textClassName={marked ? 'text-primary' : undefined}
+                    aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
                   >
-                    {state === 'covered' && (
-                      <Icon as={Check} className="size-3.5 text-primary/70" />
-                    )}
-                    <Text
-                      className={`text-sm font-medium ${
-                        state === 'selected'
-                          ? 'text-primary-foreground'
-                          : state === 'covered'
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
-                      }`}
-                    >
-                      {group}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Animated.View>
-      )}
-
-      {selectedDay === null && (
-        <View className="items-center justify-center py-24">
-          <Icon
-            as={CalendarClock}
-            className="size-12 text-muted-foreground mb-4"
-          />
-          <Text className="text-base text-muted-foreground text-center px-8">
-            Select a day above to assign body parts
-          </Text>
+                    <Text>{day.label}</Text>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </ScrollView>
         </View>
-      )}
-    </ScrollView>
+
+        {DAYS.map((day) => (
+          <TabsContent key={day.index} value={String(day.index)} className="flex-1">
+            <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
+              <View className="px-4 pt-4 pb-5 border-b border-border">
+                <Text className="text-lg font-semibold text-foreground mb-3">
+                  {day.full}
+                </Text>
+                <View className="flex-row flex-wrap">
+                  {GOLD_STANDARD_GROUPS.map((group) => {
+                    const state = getChipState(day.index, group);
+                    return (
+                      <Pressable
+                        key={group}
+                        onPress={() => toggleBodyPart(day.index, group)}
+                        className="w-1/2 p-2"
+                        aria-label={`Toggle ${group}`}
+                        accessibilityState={{ selected: state === 'selected' }}
+                        accessibilityRole="switch"
+                      >
+                        <View
+                          className={cn(
+                            'h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5',
+                            state === 'selected'
+                              ? 'bg-primary border border-primary'
+                              : state === 'covered'
+                                ? 'bg-primary/15 border border-primary/25'
+                                : 'bg-secondary border border-border active:bg-secondary/80'
+                          )}
+                        >
+                          {state === 'covered' && (
+                            <Icon as={Check} className="size-3.5 text-primary/70" />
+                          )}
+                          <Text
+                            className={cn(
+                              'text-sm font-medium',
+                              state === 'selected'
+                                ? 'text-primary-foreground'
+                                : state === 'covered'
+                                  ? 'text-primary'
+                                  : 'text-muted-foreground'
+                            )}
+                          >
+                            {group}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+          </TabsContent>
+        ))}
+      </Tabs>
     </ScreenWrapper>
   );
 }

@@ -7,10 +7,11 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { CalendarTab } from '@/components/history/calendar-tab';
 import { SummaryTab } from '@/components/history/summary-tab';
 import { InsightsTab } from '@/components/history/insights-tab';
-import { Segmented } from '@/components/ui/segmented-control';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToday } from '@/lib/use-today';
 
 type Mode = 'calendar' | 'summary' | 'insights';
@@ -187,87 +188,119 @@ export default function HistoryTab() {
 
   return (
     <ScreenWrapper>
-      {/* Segmented control */}
-      <Segmented
-        className="mx-4 mt-3"
-        options={[
-          { key: 'calendar', label: 'Calendar' },
-          { key: 'summary', label: 'Summary' },
-          { key: 'insights', label: 'Insights' },
-        ]}
+      <Tabs
         value={mode}
-        onChange={(v) => setMode(v as Mode)}
-      />
+        onValueChange={(v) => {
+          Haptics.selectionAsync().catch(() => {});
+          setMode(v as Mode);
+        }}
+        className="flex-1">
 
-      {/* Navigator */}
-      {mode === 'insights' ? (
-        <View className="flex-row items-center justify-between px-4 py-2">
-          <Pressable
-            onPress={goToPrevWindow}
-            disabled={!canGoPrevWindow}
-            className="p-3"
-            aria-label="Previous window"
-          >
-            <Icon
-              as={ChevronLeft}
-              className={`size-5 ${canGoPrevWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-          <Text className="text-sm font-semibold text-foreground">
-            {formatWindowLabel(windowEndDate)}
-          </Text>
-          <Pressable
-            onPress={goToNextWindow}
-            disabled={!canGoNextWindow}
-            className="p-3"
-            aria-label="Next window"
-          >
-            <Icon
-              as={ChevronRight}
-              className={`size-5 ${canGoNextWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-        </View>
-      ) : (
-        <View className="flex-row items-center justify-between px-4 py-2">
-          <Pressable
-            onPress={goToPrevMonth}
-            disabled={!canGoPrev}
-            className="p-3"
-            aria-label="Previous month"
-          >
-            <Icon
-              as={ChevronLeft}
-              className={`size-5 ${canGoPrev ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-          <Text className="text-base font-semibold text-foreground">
-            {formatMonthYear(currentYear, currentMonth)}
-          </Text>
-          <Pressable
-            onPress={goToNextMonth}
-            disabled={!canGoNext}
-            className="p-3"
-            aria-label="Next month"
-          >
-            <Icon
-              as={ChevronRight}
-              className={`size-5 ${canGoNext ? 'text-foreground' : 'text-muted-foreground/20'}`}
-            />
-          </Pressable>
-        </View>
-      )}
+        <TabsList className="mx-auto mt-3">
+          <TabsTrigger value="calendar" variant="primary">
+            <Text>Calendar</Text>
+          </TabsTrigger>
+          <TabsTrigger value="summary" variant="primary">
+            <Text>Summary</Text>
+          </TabsTrigger>
+          <TabsTrigger value="insights" variant="primary">
+            <Text>Insights</Text>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab content */}
-      {mode === 'calendar' && (
-        <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} today={today} />
-      )}
-      {mode === 'summary' && (
-        <SummaryTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />
-      )}
-      {mode === 'insights' && (
-        <InsightsTab windowEndDate={windowEndDate} weightUnit={weightUnit} />
-      )}
+        <TabsContent value="calendar" className="flex-1">
+          <View className="flex-row items-center justify-between px-4 py-2">
+            <Pressable
+              onPress={goToPrevMonth}
+              disabled={!canGoPrev}
+              className="p-3"
+              aria-label="Previous month"
+            >
+              <Icon
+                as={ChevronLeft}
+                className={`size-5 ${canGoPrev ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+            <Text className="text-base font-semibold text-foreground">
+              {formatMonthYear(currentYear, currentMonth)}
+            </Text>
+            <Pressable
+              onPress={goToNextMonth}
+              disabled={!canGoNext}
+              className="p-3"
+              aria-label="Next month"
+            >
+              <Icon
+                as={ChevronRight}
+                className={`size-5 ${canGoNext ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+          </View>
+          <CalendarTab year={currentYear} month={currentMonth} weightUnit={weightUnit} today={today} />
+        </TabsContent>
+
+        <TabsContent value="summary" className="flex-1">
+          <View className="flex-row items-center justify-between px-4 py-2">
+            <Pressable
+              onPress={goToPrevMonth}
+              disabled={!canGoPrev}
+              className="p-3"
+              aria-label="Previous month"
+            >
+              <Icon
+                as={ChevronLeft}
+                className={`size-5 ${canGoPrev ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+            <Text className="text-base font-semibold text-foreground">
+              {formatMonthYear(currentYear, currentMonth)}
+            </Text>
+            <Pressable
+              onPress={goToNextMonth}
+              disabled={!canGoNext}
+              className="p-3"
+              aria-label="Next month"
+            >
+              <Icon
+                as={ChevronRight}
+                className={`size-5 ${canGoNext ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+          </View>
+          <SummaryTab year={currentYear} month={currentMonth} weightUnit={weightUnit} />
+        </TabsContent>
+
+        <TabsContent value="insights" className="flex-1">
+          <View className="flex-row items-center justify-between px-4 py-2">
+            <Pressable
+              onPress={goToPrevWindow}
+              disabled={!canGoPrevWindow}
+              className="p-3"
+              aria-label="Previous window"
+            >
+              <Icon
+                as={ChevronLeft}
+                className={`size-5 ${canGoPrevWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+            <Text className="text-sm font-semibold text-foreground">
+              {formatWindowLabel(windowEndDate)}
+            </Text>
+            <Pressable
+              onPress={goToNextWindow}
+              disabled={!canGoNextWindow}
+              className="p-3"
+              aria-label="Next window"
+            >
+              <Icon
+                as={ChevronRight}
+                className={`size-5 ${canGoNextWindow ? 'text-foreground' : 'text-muted-foreground/20'}`}
+              />
+            </Pressable>
+          </View>
+          <InsightsTab windowEndDate={windowEndDate} weightUnit={weightUnit} />
+        </TabsContent>
+      </Tabs>
     </ScreenWrapper>
   );
 }

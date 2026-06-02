@@ -24,6 +24,7 @@ import { useToday } from '@/lib/use-today';
 import { mapJsDayToOur } from '@/lib/date-utils';
 import { ExerciseRow as ExerciseRowComponent, DoneBadge, RowChevron } from '@/components/exercise-row';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -43,8 +44,7 @@ const DEFAULTS: Record<string, string> = {
   queue_enabled: 'false',
 };
 
-const TAB_BAR_WRAPPER_STYLE = { flexGrow: 0, flexShrink: 1 } as const;
-const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 12, paddingVertical: 10, gap: 10 } as const;
+const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 16, paddingVertical: 8 } as const;
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -318,44 +318,37 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       </View>
 
       {/* Horizontal filter tabs — below search */}
-      <View style={TAB_BAR_WRAPPER_STYLE}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="border-b border-border"
-          contentContainerStyle={TAB_BAR_CONTENT_STYLE}
-        >
-          {tabs.map((t) => {
-            const active = t.key === selectedTab;
-            const isCarryover = carryoverParts.has(t.key);
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => navigateToTab(t.key)}
-                className={`h-9 px-4 items-center justify-center rounded-full ${
-                  active
-                    ? 'bg-primary border border-primary'
-                    : 'bg-secondary active:bg-secondary/80'
-                }`}
-                aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    active ? 'text-primary-foreground' : 'text-foreground'
-                  }`}
-                >
-                  {t.label}
-                </Text>
-                {isCarryover && (
-                  <View
-                    className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <Tabs value={selectedTab} onValueChange={navigateToTab}>
+        <View className="border-b border-border">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={TAB_BAR_CONTENT_STYLE}
+          >
+            <TabsList variant="pills">
+              {tabs.map((t) => {
+                const active = t.key === selectedTab;
+                const isCarryover = carryoverParts.has(t.key);
+                return (
+                  <TabsTrigger
+                    key={t.key}
+                    value={t.key}
+                    variant="pill"
+                    aria-label={`Filter by ${t.label}${isCarryover ? ', carried over from yesterday' : ''}`}
+                  >
+                    <Text>{t.label}</Text>
+                    {isCarryover && (
+                      <View
+                        className={`absolute top-1 right-1 size-1.5 rounded-full ${active ? 'bg-primary-foreground' : 'bg-primary'}`}
+                      />
+                    )}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </ScrollView>
+        </View>
+      </Tabs>
 
       {/* Today's session card */}
       {completedToday.size > 0 && (
