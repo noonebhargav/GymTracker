@@ -64,10 +64,17 @@ const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
 
 const TextClassContext = React.createContext<string | undefined>(undefined);
 
+// Android-only: force an explicit font family so RN resolves real Roboto weight
+// variants instead of the synthetic-bold path, which mis-measures and drops the
+// last word when the system "Bold text" accessibility setting is on (RN #21729).
+const ANDROID_DEFAULT_STYLE = Platform.OS === 'android' ? { fontFamily: 'sans-serif' } : undefined;
+
 function Text({
   className,
   asChild = false,
   variant = 'default',
+  style,
+  textBreakStrategy,
   ...props
 }: React.ComponentProps<typeof RNText> &
   React.RefAttributes<typeof RNText> &
@@ -76,11 +83,21 @@ function Text({
   }) {
   const textClass = React.useContext(TextClassContext);
   const Component = asChild ? Slot : RNText;
+  // The Android workaround only applies to the real RNText element. When asChild,
+  // we forward the caller's props untouched so Slot doesn't push text-only props
+  // (textBreakStrategy) or a font override onto an arbitrary child element.
+  // `simple` strategy avoids the multi-line last-word drop on Android; callers can override.
+  const resolvedBreakStrategy = asChild
+    ? textBreakStrategy
+    : textBreakStrategy ?? Platform.select({ android: 'simple' as const });
+  const resolvedStyle = !asChild && ANDROID_DEFAULT_STYLE ? [ANDROID_DEFAULT_STYLE, style] : style;
   return (
     <Component
       className={cn(textVariants({ variant }), textClass, className)}
       role={variant ? ROLE[variant] : undefined}
       aria-level={variant ? ARIA_LEVEL[variant] : undefined}
+      textBreakStrategy={resolvedBreakStrategy}
+      style={resolvedStyle}
       {...props}
     />
   );
