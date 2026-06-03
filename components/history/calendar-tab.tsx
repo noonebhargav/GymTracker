@@ -179,12 +179,12 @@ export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps
 
       {/* Monthly stats */}
       {monthStats && (
-        <View className="flex-row gap-2 mt-4">
+        <View className="flex-row flex-wrap gap-2 mt-4">
           {[
             { label: 'WORKOUTS', value: String(monthStats.workouts) },
             { label: 'SETS', value: String(monthStats.sets) },
             {
-              label: 'AVG WGT',
+              label: 'AVG WEIGHT',
               value: `${Math.round(displayWeight(monthStats.avgWeight, weightUnit))} ${weightUnit}`,
             },
             {
@@ -194,9 +194,12 @@ export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps
           ].map(({ label, value }) => (
             <View
               key={label}
-              className="flex-1 bg-card border border-border rounded-xl p-3 items-center"
+              className="bg-card border border-border rounded-xl p-3 items-center"
+              style={{ flexBasis: '47%', flexGrow: 1 }}
             >
-              <Text className="text-lg font-bold text-foreground">{value}</Text>
+              <Text className="text-lg font-bold text-foreground" numberOfLines={1}>
+                {value}
+              </Text>
               <Text className="text-[10px] font-semibold text-muted-foreground tracking-widest mt-0.5">
                 {label}
               </Text>

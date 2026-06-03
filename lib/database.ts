@@ -669,7 +669,7 @@ export async function getWindowPRs(
          FROM workout_logs
          WHERE exercise_id = r.exercise_id AND date_logged < ?
        ), 0)
-     ORDER BY r.best_date DESC`,
+     ORDER BY r.date_logged DESC`,
     windowStart,
     windowEnd,
     windowStart
