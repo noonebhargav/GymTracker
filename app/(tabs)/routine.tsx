@@ -107,7 +107,7 @@ export default function RoutineTab() {
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
         <View className="border-b border-border px-4 pt-3 pb-2">
           {/* Selected-day label, styled to match the Workout screen header. */}
-          <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+          <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
             {DAYS[Number(selectedDay)].full}
           </Text>
           {/* Whole week stays visible: pills wrap to 4 + 3 (centered) instead of
@@ -145,7 +145,7 @@ export default function RoutineTab() {
         {DAYS.map((day) => (
           <TabsContent key={day.index} value={String(day.index)} className="flex-1">
             <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
-              <View className="px-4 pt-4 pb-5 border-b border-border">
+              <View className="px-4 pt-4 pb-5">
                 <View className="rounded-2xl border border-border overflow-hidden">
                   {GOLD_STANDARD_GROUPS.map((group, i) => {
                     const state = getChipState(day.index, group);
