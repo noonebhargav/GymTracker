@@ -105,35 +105,37 @@ export default function RoutineTab() {
   return (
     <ScreenWrapper>
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
-        <View className="border-b border-border">
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-          >
-            <TabsList variant="pills">
-              {DAYS.map((day) => {
-                const isSelected = selectedDay === String(day.index);
-                const hasAssignments = assignedCounts[day.index] > 0;
-                // Third state: a day with assigned body parts that isn't the
-                // current selection gets a tinted fill + accent text.
-                const marked = !isSelected && hasAssignments;
+        <View className="border-b border-border px-4 py-2">
+          {/* Whole week stays visible: pills wrap to 4 + 3 (centered) instead of
+              scrolling horizontally, so no day is hidden off-screen. */}
+          <TabsList variant="pills" className="w-full flex-wrap justify-center">
+            {DAYS.map((day) => {
+              const isSelected = selectedDay === String(day.index);
+              const hasAssignments = assignedCounts[day.index] > 0;
+              // Third state: a day with assigned body parts that isn't the
+              // current selection gets a tinted fill + accent text.
+              const marked = !isSelected && hasAssignments;
 
-                return (
-                  <TabsTrigger
-                    key={day.index}
-                    value={String(day.index)}
-                    variant="pill"
-                    className={marked ? 'bg-primary/15 border-primary/25' : undefined}
-                    textClassName={marked ? 'text-primary' : undefined}
-                    aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
-                  >
-                    <Text>{day.label}</Text>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </ScrollView>
+              return (
+                <TabsTrigger
+                  key={day.index}
+                  value={String(day.index)}
+                  variant="pill"
+                  // basis-[22%] + grow-0/shrink-0 → exactly 4 pills per row
+                  // (4 × 22% + gap-2 ≈ 95%), so the 7 days wrap to a fixed
+                  // 4 + 3 (centered). shrink-0 keeps it rigid on web too.
+                  className={cn(
+                    'basis-[22%] grow-0 shrink-0',
+                    marked && 'bg-primary/15 border-primary/25'
+                  )}
+                  textClassName={marked ? 'text-primary' : undefined}
+                  aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
+                >
+                  <Text>{day.label}</Text>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
         </View>
 
         {DAYS.map((day) => (
@@ -143,44 +145,46 @@ export default function RoutineTab() {
                 <Text className="text-lg font-semibold text-foreground mb-3">
                   {day.full}
                 </Text>
-                <View className="flex-row flex-wrap">
-                  {GOLD_STANDARD_GROUPS.map((group) => {
+                <View className="rounded-2xl border border-border overflow-hidden">
+                  {GOLD_STANDARD_GROUPS.map((group, i) => {
                     const state = getChipState(day.index, group);
+                    // Other days this group is assigned to (shown as a hint on
+                    // `covered` rows, e.g. "Mon · Wed").
+                    const otherDays = (partToDays.get(group) ?? [])
+                      .filter((d) => d !== day.index)
+                      .sort((a, b) => a - b)
+                      .map((d) => DAYS[d].label)
+                      .join(' · ');
                     return (
                       <Pressable
                         key={group}
                         onPress={() => toggleBodyPart(day.index, group)}
-                        className="w-1/2 p-2"
+                        className={cn(
+                          'h-14 px-4 flex-row items-center justify-between active:opacity-70',
+                          i > 0 && 'border-t border-border',
+                          state === 'selected' && 'bg-primary/10'
+                        )}
                         aria-label={`Toggle ${group}`}
                         accessibilityState={{ selected: state === 'selected' }}
                         accessibilityRole="switch"
                       >
-                        <View
+                        <Text
                           className={cn(
-                            'h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5',
+                            'text-base font-medium',
                             state === 'selected'
-                              ? 'bg-primary border border-primary'
+                              ? 'text-primary'
                               : state === 'covered'
-                                ? 'bg-primary/15 border border-primary/25'
-                                : 'bg-secondary border border-border active:bg-secondary/80'
+                                ? 'text-foreground'
+                                : 'text-muted-foreground'
                           )}
                         >
-                          {state === 'covered' && (
-                            <Icon as={Check} className="size-3.5 text-primary/70" />
-                          )}
-                          <Text
-                            className={cn(
-                              'text-sm font-medium',
-                              state === 'selected'
-                                ? 'text-primary-foreground'
-                                : state === 'covered'
-                                  ? 'text-primary'
-                                  : 'text-muted-foreground'
-                            )}
-                          >
-                            {group}
-                          </Text>
-                        </View>
+                          {group}
+                        </Text>
+                        {state === 'selected' ? (
+                          <Icon as={Check} className="size-5 text-primary" />
+                        ) : state === 'covered' ? (
+                          <Text className="text-xs text-muted-foreground">{otherDays}</Text>
+                        ) : null}
                       </Pressable>
                     );
                   })}

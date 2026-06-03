@@ -1,6 +1,6 @@
 # Task 1 — Pill restyle + Routine layout rework
 
-**Status:** todo
+**Status:** done
 **New deps:** none · **Risk:** low · **Do first.**
 
 ## Why
@@ -26,3 +26,19 @@ Keep `toggleBodyPart`, `getChipState`, and accessibility props (`accessibilityRo
 ## Verify
 - `npx tsc --noEmit`
 - Run app: bigger pills on Routine + Workout; Routine cards toggle and persist across day switches and app restart; a11y roles intact.
+
+## Implementation (high-level flow)
+Final design diverged from the original spec after a design pass — see notes below.
+
+1. **Shared pill enlarged** (`components/ui/tabs.tsx`): `pill` shape `h-9 px-4` → `h-11 px-5` (≈44px). One-line change; auto-applies to both Routine day pills and Workout filter pills.
+2. **Routine day selector → 4+3 wrap** (`routine.tsx`): replaced the horizontal `ScrollView` with a wrapping, centered `TabsList` (`w-full flex-wrap justify-center`). Day pills get `basis-[22%] grow-0 shrink-0` so exactly 4 fit per row (rigid on web too) → renders **4 on top, 3 centered below**, keeping the whole week visible (no hidden days behind a scroll). Marked-day tint + a11y labels preserved.
+3. **Body-part picker → list rows** (`routine.tsx`): replaced the half-width pill grid with a single rounded container (`rounded-2xl border border-border overflow-hidden`) of 8 full-width `h-14` rows with hairline dividers. Per-row state:
+   - `selected` → `bg-primary/10`, `text-primary`, trailing `Check` icon.
+   - `covered` → neutral row + muted day-hint on the right (e.g. `Mon · Wed`), derived from `partToDays` minus the current day.
+   - `unassigned` → neutral row, `text-muted-foreground`, no trailing content.
+   `toggleBodyPart`, `getChipState`, Haptics, `accessibilityRole="switch"` + `accessibilityState` all retained.
+4. **Workout filter pills**: verified only — carryover dot (`absolute top-1 right-1`) and scroll alignment hold on the taller pill; no code change.
+
+**Design changes vs. original spec:** spec proposed a *2-col grid of larger cards*; after a design discussion this became *single-column list rows* (better fixes the top-heavy feel + has room for day hints). Also added the day-selector 4+3 wrap (not in the original spec) to keep the full week visible once pills grew.
+
+**Verification:** `npx tsc --noEmit` passes clean. Visual run still recommended to confirm the 4+3 split and row toggling on-device.
