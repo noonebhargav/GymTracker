@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useCSSVariable } from 'uniwind';
 import { Trophy } from 'lucide-react-native';
 import {
   getMonthlyAggregates,
@@ -15,7 +16,7 @@ import {
   type BodyPartVolumeRow,
   type WindowPRRow,
 } from '@/lib/database';
-import { GOLD_STANDARD_GROUPS, toGoldStandardGroup } from '@/lib/exercise-groups';
+import { GOLD_STANDARD_GROUPS, type GoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
 import { useAccentHex } from '@/lib/accent-store';
 
@@ -78,6 +79,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const db = useSQLiteContext();
   const accentHex = useAccentHex();
   const accentRgb = useMemo(() => hexToRgb(accentHex), [accentHex]);
+  const secondaryBg = useCSSVariable('--color-secondary') as string | undefined;
 
   // --- Chart weeks for the selected month ---
   const weeks = useMemo(() => buildMonthWeeks(year, month), [year, month]);
@@ -151,7 +153,9 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const heatmapData = useMemo(() => {
     const grouped = new Map<string, { volume: number; setCount: number }>();
     for (const row of bodyPartRows) {
-      const group = toGoldStandardGroup(row.body_part, row.target);
+      const group = (GOLD_STANDARD_GROUPS as readonly string[]).includes(row.body_part)
+        ? (row.body_part as GoldStandardGroup)
+        : null;
       if (!group) continue;
       const existing = grouped.get(group) ?? { volume: 0, setCount: 0 };
       grouped.set(group, {
@@ -298,18 +302,19 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
             return (
               <View
                 key={group}
-                className="rounded-xl p-3 bg-secondary"
                 style={{
                   width: '22%',
                   minWidth: 72,
                   flex: 1,
+                  borderRadius: 8,
+                  padding: 12,
                   backgroundColor: active
                     ? rgba(accentRgb, 0.08 + intensity * 0.45)
-                    : undefined,
+                    : secondaryBg,
                 }}
                 accessibilityLabel={`${group}, ${active ? `${valueText}${countBased ? '' : ' volume'}` : 'rest'}`}
               >
-                <Text className="text-[10px] font-semibold text-muted-foreground mb-1" numberOfLines={1}>
+                <Text className={`text-[10px] font-semibold mb-1 ${active ? 'text-foreground' : 'text-muted-foreground'}`} numberOfLines={1}>
                   {group}
                 </Text>
                 {active ? (
