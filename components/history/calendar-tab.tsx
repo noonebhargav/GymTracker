@@ -6,6 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import {
   getMonthlyAggregates,
   displayWeight,
+  formatVolume,
   type DayAggregateRow,
 } from '@/lib/database';
 import { mapJsDayToOur } from '@/lib/date-utils';
@@ -93,16 +94,19 @@ export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps
     let sets = 0;
     let totalWeight = 0;
     let weightCount = 0;
+    let volume = 0;
     for (const a of aggregates) {
       workouts += a.exercise_count;
       sets += a.set_count;
       totalWeight += a.avg_weight * a.set_count;
       weightCount += a.set_count;
+      volume += a.volume;
     }
     return {
       workouts,
       sets,
       avgWeight: weightCount > 0 ? totalWeight / weightCount : 0,
+      volume,
     };
   }, [aggregates]);
 
@@ -180,8 +184,12 @@ export function CalendarTab({ year, month, weightUnit, today }: CalendarTabProps
             { label: 'WORKOUTS', value: String(monthStats.workouts) },
             { label: 'SETS', value: String(monthStats.sets) },
             {
-              label: 'AVG WEIGHT',
+              label: 'AVG WGT',
               value: `${Math.round(displayWeight(monthStats.avgWeight, weightUnit))} ${weightUnit}`,
+            },
+            {
+              label: 'VOLUME',
+              value: `${formatVolume(monthStats.volume, weightUnit)} ${weightUnit}`,
             },
           ].map(({ label, value }) => (
             <View

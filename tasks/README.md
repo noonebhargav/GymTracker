@@ -7,6 +7,7 @@ Refined additions for the (near-complete) GymTracker app. **Do one task at a tim
 | 1 | [Pill restyle + Routine layout rework](./01-pill-restyle-routine-layout.md) | none | no | low |
 | 2 | [Import / Export JSON](./02-import-export-json.md) | file-system, sharing, document-picker | yes | medium |
 | 3 | [Rest timer + session stopwatch](./03-rest-timer-session-stopwatch.md) | notifications | yes | med-high |
+| 4 | [Insights tab: volume metric + bug fixes](./04-insights-tab-volume-rework.md) | none | no | medium |
 
 ## Shared notes
 - Dev-client project: Tasks 2 & 3 add native modules → need `npm run ios`/`android` rebuild (Fast Refresh won't pick them up).
