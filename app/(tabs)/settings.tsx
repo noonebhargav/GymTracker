@@ -313,7 +313,7 @@ export default function SettingsTab() {
   const weightMax = isKgRuler ? 300 : 600;
   const weightStep = 2.5;
   const weightLabelEvery = 4;
-  const weightQuickSteps = isKgRuler ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
+  const weightQuickSteps = isKgRuler ? [-10, -5, -2.5, 2.5, 5, 10] : [-25, -10, -5, 5, 10, 25];
 
   return (
     <ScreenWrapper>
