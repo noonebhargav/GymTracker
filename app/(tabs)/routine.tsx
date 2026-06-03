@@ -105,7 +105,11 @@ export default function RoutineTab() {
   return (
     <ScreenWrapper>
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
-        <View className="border-b border-border px-4 py-2">
+        <View className="border-b border-border px-4 pt-3 pb-2">
+          {/* Selected-day label, styled to match the Workout screen header. */}
+          <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+            {DAYS[Number(selectedDay)].full}
+          </Text>
           {/* Whole week stays visible: pills wrap to 4 + 3 (centered) instead of
               scrolling horizontally, so no day is hidden off-screen. */}
           <TabsList variant="pills" className="w-full flex-wrap justify-center">
@@ -142,9 +146,6 @@ export default function RoutineTab() {
           <TabsContent key={day.index} value={String(day.index)} className="flex-1">
             <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
               <View className="px-4 pt-4 pb-5 border-b border-border">
-                <Text className="text-lg font-semibold text-foreground mb-3">
-                  {day.full}
-                </Text>
                 <View className="rounded-2xl border border-border overflow-hidden">
                   {GOLD_STANDARD_GROUPS.map((group, i) => {
                     const state = getChipState(day.index, group);
@@ -172,10 +173,10 @@ export default function RoutineTab() {
                           className={cn(
                             'text-base font-medium',
                             state === 'selected'
-                              ? 'text-primary'
+                              ? 'text-primary' // active day → accent highlight
                               : state === 'covered'
-                                ? 'text-foreground'
-                                : 'text-muted-foreground'
+                                ? 'text-muted-foreground' // taken on another day → dimmed
+                                : 'text-foreground' // available → bright
                           )}
                         >
                           {group}

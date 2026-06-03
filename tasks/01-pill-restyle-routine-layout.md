@@ -42,3 +42,7 @@ Final design diverged from the original spec after a design pass — see notes b
 **Design changes vs. original spec:** spec proposed a *2-col grid of larger cards*; after a design discussion this became *single-column list rows* (better fixes the top-heavy feel + has room for day hints). Also added the day-selector 4+3 wrap (not in the original spec) to keep the full week visible once pills grew.
 
 **Verification:** `npx tsc --noEmit` passes clean. Visual run still recommended to confirm the 4+3 split and row toggling on-device.
+
+### Polish (post-review)
+- **Day label restyle + reorder** (`routine.tsx`): replaced the large title-case `text-lg` heading (which sat *after* the pills, inside the content) with a small uppercase muted label *above* the pills — `text-[13px] font-semibold text-muted-foreground uppercase tracking-widest`, matching the Workout screen header (`workout-screen.tsx:293`). The label tracks the **selected** day (`DAYS[Number(selectedDay)].full`), not today.
+- **Reversed row dimming** (`routine.tsx`): available (`unassigned`) rows are now bright (`text-foreground`); parts assigned to another day (`covered`) are dimmed (`text-muted-foreground`) with their day hint; the active day's picks (`selected`) stay highlighted (accent + Check). Surfaces what's still available to assign.
