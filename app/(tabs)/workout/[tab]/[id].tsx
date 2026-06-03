@@ -265,7 +265,7 @@ export default function ExerciseSetEditor() {
   const weightMax = isKg ? 300 : 600;
   const weightStep = 2.5;
   const weightLabelEvery = 4;
-  const weightQuickSteps = isKg ? [-5, -2.5, 2.5, 5] : [-10, -5, 5, 10, 25];
+  const weightQuickSteps = isKg ? [-10, -5, -2.5, 2.5, 5, 10] : [-25, -10, -5, 5, 10, 25];
 
   if (!loaded) {
     return (

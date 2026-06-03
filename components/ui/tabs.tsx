@@ -51,7 +51,7 @@ function TabsTrigger({
   // Screens layer `className`/`textClassName` on top for any extra (third) state.
   const shape =
     variant === 'pill'
-      ? 'h-9 px-4 rounded-full border border-transparent active:opacity-80'
+      ? 'h-11 px-5 rounded-full border border-transparent active:opacity-80'
       : 'rounded-md border border-transparent px-4 py-3 shadow-none shadow-black/5';
 
   let bg: string | undefined;

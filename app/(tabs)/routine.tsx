@@ -105,80 +105,101 @@ export default function RoutineTab() {
   return (
     <ScreenWrapper>
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
-        <View className="border-b border-border">
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-          >
-            <TabsList variant="pills">
-              {DAYS.map((day) => {
-                const isSelected = selectedDay === String(day.index);
-                const hasAssignments = assignedCounts[day.index] > 0;
-                // Third state: a day with assigned body parts that isn't the
-                // current selection gets a tinted fill + accent text.
-                const marked = !isSelected && hasAssignments;
+        <View className="border-b border-border px-4 pt-3 pb-2">
+          {/* Selected-day label, styled to match the Workout screen header. */}
+          <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+            {DAYS[Number(selectedDay)].full}
+          </Text>
+          {/* Whole week stays visible: pills wrap to 4 + 3 (centered) instead of
+              scrolling horizontally, so no day is hidden off-screen. */}
+          <TabsList variant="pills" className="w-full flex-wrap justify-center">
+            {DAYS.map((day) => {
+              const isSelected = selectedDay === String(day.index);
+              const hasAssignments = assignedCounts[day.index] > 0;
+              // Third state: a day with assigned body parts that isn't the
+              // current selection gets a tinted fill + accent text.
+              const marked = !isSelected && hasAssignments;
 
-                return (
-                  <TabsTrigger
-                    key={day.index}
-                    value={String(day.index)}
-                    variant="pill"
-                    className={marked ? 'bg-primary/15 border-primary/25' : undefined}
-                    textClassName={marked ? 'text-primary' : undefined}
-                    aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
-                  >
-                    <Text>{day.label}</Text>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </ScrollView>
+              return (
+                <TabsTrigger
+                  key={day.index}
+                  value={String(day.index)}
+                  variant="pill"
+                  // basis-[22%] + grow-0/shrink-0 → exactly 4 pills per row
+                  // (4 × 22% + gap-2 ≈ 95%), so the 7 days wrap to a fixed
+                  // 4 + 3 (centered). shrink-0 keeps it rigid on web too.
+                  className={cn(
+                    'basis-[22%] grow-0 shrink-0',
+                    marked && 'bg-primary/15 border-primary/25'
+                  )}
+                  textClassName={marked ? 'text-primary' : undefined}
+                  aria-label={`${day.full} routine${hasAssignments ? `, ${assignedCounts[day.index]} body parts` : ''}`}
+                >
+                  <Text>{day.label}</Text>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
         </View>
 
         {DAYS.map((day) => (
           <TabsContent key={day.index} value={String(day.index)} className="flex-1">
             <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
-              <View className="px-4 pt-4 pb-5 border-b border-border">
-                <Text className="text-lg font-semibold text-foreground mb-3">
-                  {day.full}
-                </Text>
-                <View className="flex-row flex-wrap">
+              <View className="px-4 pt-4 pb-5">
+                {/* 2-col card grid mirroring the Explore screen's body-part
+                    cards, with the subtitle showing assigned days instead of
+                    an exercise count. -mx-1.5 offsets the cell padding so card
+                    edges line up with the surrounding px-4 content. */}
+                <View className="flex-row flex-wrap -mx-1.5">
                   {GOLD_STANDARD_GROUPS.map((group) => {
                     const state = getChipState(day.index, group);
+                    // Days this group is assigned to, e.g. "Mon · Wed".
+                    const assignedDays = (partToDays.get(group) ?? [])
+                      .slice()
+                      .sort((a, b) => a - b)
+                      .map((d) => DAYS[d].label)
+                      .join(' · ');
                     return (
                       <Pressable
                         key={group}
                         onPress={() => toggleBodyPart(day.index, group)}
-                        className="w-1/2 p-2"
+                        style={{ width: '50%' }}
+                        className="p-1.5"
                         aria-label={`Toggle ${group}`}
                         accessibilityState={{ selected: state === 'selected' }}
                         accessibilityRole="switch"
                       >
                         <View
                           className={cn(
-                            'h-9 px-4 rounded-full items-center justify-center flex-row gap-1.5',
+                            'rounded-[14px] border p-4 active:opacity-70',
                             state === 'selected'
-                              ? 'bg-primary border border-primary'
-                              : state === 'covered'
-                                ? 'bg-primary/15 border border-primary/25'
-                                : 'bg-secondary border border-border active:bg-secondary/80'
+                              ? 'bg-primary/10 border-primary/30' // active day → highlight
+                              : 'bg-card border-border'
                           )}
                         >
-                          {state === 'covered' && (
-                            <Icon as={Check} className="size-3.5 text-primary/70" />
-                          )}
-                          <Text
-                            className={cn(
-                              'text-sm font-medium',
-                              state === 'selected'
-                                ? 'text-primary-foreground'
-                                : state === 'covered'
-                                  ? 'text-primary'
-                                  : 'text-muted-foreground'
+                          <View className="flex-row items-start justify-between">
+                            <Text
+                              className={cn(
+                                'flex-1 text-base font-semibold',
+                                state === 'selected'
+                                  ? 'text-primary' // active day → accent
+                                  : state === 'covered'
+                                    ? 'text-muted-foreground' // taken elsewhere → dimmed
+                                    : 'text-foreground' // available → bright
+                              )}
+                              numberOfLines={1}
+                            >
+                              {group}
+                            </Text>
+                            {state === 'selected' && (
+                              <Icon as={Check} className="size-4 text-primary ml-1" />
                             )}
+                          </View>
+                          <Text
+                            className="text-xs text-muted-foreground mt-0.5"
+                            numberOfLines={1}
                           >
-                            {group}
+                            {assignedDays || 'Not assigned'}
                           </Text>
                         </View>
                       </Pressable>
