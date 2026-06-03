@@ -146,13 +146,16 @@ export default function RoutineTab() {
           <TabsContent key={day.index} value={String(day.index)} className="flex-1">
             <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
               <View className="px-4 pt-4 pb-5">
-                <View className="rounded-2xl border border-border overflow-hidden">
-                  {GOLD_STANDARD_GROUPS.map((group, i) => {
+                {/* 2-col card grid mirroring the Explore screen's body-part
+                    cards, with the subtitle showing assigned days instead of
+                    an exercise count. -mx-1.5 offsets the cell padding so card
+                    edges line up with the surrounding px-4 content. */}
+                <View className="flex-row flex-wrap -mx-1.5">
+                  {GOLD_STANDARD_GROUPS.map((group) => {
                     const state = getChipState(day.index, group);
-                    // Other days this group is assigned to (shown as a hint on
-                    // `covered` rows, e.g. "Mon · Wed").
-                    const otherDays = (partToDays.get(group) ?? [])
-                      .filter((d) => d !== day.index)
+                    // Days this group is assigned to, e.g. "Mon · Wed".
+                    const assignedDays = (partToDays.get(group) ?? [])
+                      .slice()
                       .sort((a, b) => a - b)
                       .map((d) => DAYS[d].label)
                       .join(' · ');
@@ -160,32 +163,45 @@ export default function RoutineTab() {
                       <Pressable
                         key={group}
                         onPress={() => toggleBodyPart(day.index, group)}
-                        className={cn(
-                          'h-14 px-4 flex-row items-center justify-between active:opacity-70',
-                          i > 0 && 'border-t border-border',
-                          state === 'selected' && 'bg-primary/10'
-                        )}
+                        style={{ width: '50%' }}
+                        className="p-1.5"
                         aria-label={`Toggle ${group}`}
                         accessibilityState={{ selected: state === 'selected' }}
                         accessibilityRole="switch"
                       >
-                        <Text
+                        <View
                           className={cn(
-                            'text-base font-medium',
+                            'rounded-[14px] border p-4 active:opacity-70',
                             state === 'selected'
-                              ? 'text-primary' // active day → accent highlight
-                              : state === 'covered'
-                                ? 'text-muted-foreground' // taken on another day → dimmed
-                                : 'text-foreground' // available → bright
+                              ? 'bg-primary/10 border-primary/30' // active day → highlight
+                              : 'bg-card border-border'
                           )}
                         >
-                          {group}
-                        </Text>
-                        {state === 'selected' ? (
-                          <Icon as={Check} className="size-5 text-primary" />
-                        ) : state === 'covered' ? (
-                          <Text className="text-xs text-muted-foreground">{otherDays}</Text>
-                        ) : null}
+                          <View className="flex-row items-start justify-between">
+                            <Text
+                              className={cn(
+                                'flex-1 text-base font-semibold',
+                                state === 'selected'
+                                  ? 'text-primary' // active day → accent
+                                  : state === 'covered'
+                                    ? 'text-muted-foreground' // taken elsewhere → dimmed
+                                    : 'text-foreground' // available → bright
+                              )}
+                              numberOfLines={1}
+                            >
+                              {group}
+                            </Text>
+                            {state === 'selected' && (
+                              <Icon as={Check} className="size-4 text-primary ml-1" />
+                            )}
+                          </View>
+                          <Text
+                            className="text-xs text-muted-foreground mt-0.5"
+                            numberOfLines={1}
+                          >
+                            {assignedDays || 'Not assigned'}
+                          </Text>
+                        </View>
                       </Pressable>
                     );
                   })}
