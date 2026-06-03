@@ -95,6 +95,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const [dailyAggs, setDailyAggs] = useState<DayAggregateRow[]>([]);
   const [bodyPartRows, setBodyPartRows] = useState<BodyPartVolumeRow[]>([]);
   const [prRows, setPrRows] = useState<WindowPRRow[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadStats = useCallback(async () => {
     const [aggs, prs] = await Promise.all([
@@ -103,11 +104,13 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
     ]);
     setDailyAggs(aggs);
     setPrRows(prs);
+    setHasLoaded(true);
   }, [db, chartStart, chartEnd, monthStart, monthEnd]);
 
   const loadHeatmap = useCallback(async () => {
     const bpVolumes = await getBodyPartVolumes(db, heatmapStart, heatmapEnd);
     setBodyPartRows(bpVolumes);
+    setHasLoaded(true);
   }, [db, heatmapStart, heatmapEnd]);
 
   // Two independent focus effects: each refetches on focus and only when its own
@@ -178,7 +181,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   }, [bodyPartRows]);
 
   const isEmpty =
-    dailyAggs.length === 0 && bodyPartRows.length === 0 && prRows.length === 0;
+    hasLoaded && dailyAggs.length === 0 && bodyPartRows.length === 0 && prRows.length === 0;
 
   if (isEmpty) {
     return (
