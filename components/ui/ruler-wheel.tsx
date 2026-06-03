@@ -4,6 +4,7 @@ import {
   View,
   ScrollView,
   Pressable,
+  TextInput,
   useWindowDimensions,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -12,7 +13,12 @@ import { Text } from '@/components/ui/text';
 import { useUniwind } from 'uniwind';
 import { THEME } from '@/lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  SlideInDown,
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 
 const TICK_WIDTH = 12;
 
@@ -49,6 +55,8 @@ export function RulerWheel({
   const { bottom } = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [liveValue, setLiveValue] = useState(value);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
 
   useEffect(() => {
     setLiveValue(value);
@@ -114,6 +122,26 @@ export function RulerWheel({
     [value, min, max, onChange, valueToOffset]
   );
 
+  const commitEdit = useCallback(() => {
+    const parsed = parseFloat(draft);
+    if (!isNaN(parsed)) {
+      // snap to the nearest valid tick so the ruler pin lines up
+      const stepped = min + Math.round((clamp(parsed, min, max) - min) / step) * step;
+      const newVal = clamp(stepped, min, max);
+      setLiveValue(newVal);
+      if (newVal !== value) onChange(newVal);
+      scrollRef.current?.scrollTo({ x: valueToOffset(newVal), animated: false });
+    }
+    setDraft('');
+    setEditing(false);
+  }, [draft, min, max, step, value, onChange, valueToOffset]);
+
+  // Lift the bottom-anchored sheet above the keyboard while editing the value.
+  const keyboard = useAnimatedKeyboard();
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -keyboard.height.value }],
+  }));
+
   const padding = screenWidth / 2 - TICK_WIDTH / 2;
 
   return (
@@ -130,7 +158,7 @@ export function RulerWheel({
       <Animated.View
         entering={SlideInDown.duration(280)}
         className="absolute bottom-0 left-0 right-0 bg-card rounded-t-[24px]"
-        style={{ paddingBottom: bottom + 8 }}
+        style={[{ paddingBottom: bottom + 8 }, sheetStyle]}
       >
         {/* Handle */}
         <View className="items-center mt-3 mb-2">
@@ -150,12 +178,37 @@ export function RulerWheel({
           </Pressable>
         </View>
 
-        {/* Value display */}
+        {/* Value display — tap to type a value directly */}
         <View className="items-center py-2">
-          <Text className="font-bold text-foreground" style={{ fontSize: 44, lineHeight: 52 }}>
-            {liveValue}
-            <Text className="text-lg text-muted-foreground font-medium"> {unit}</Text>
-          </Text>
+          {editing ? (
+            <View className="flex-row items-baseline bg-secondary rounded-2xl border border-primary px-5 py-1">
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                onBlur={commitEdit}
+                onSubmitEditing={commitEdit}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+                autoFocus
+                className="font-bold text-foreground text-center p-0 min-w-16"
+                style={{ fontSize: 44, lineHeight: 52 }}
+              />
+              <Text className="text-lg text-muted-foreground font-medium"> {unit}</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setDraft(String(liveValue));
+                setEditing(true);
+              }}
+              className="flex-row items-baseline bg-secondary rounded-2xl border border-border px-5 py-1 active:opacity-70"
+            >
+              <Text className="font-bold text-foreground" style={{ fontSize: 44, lineHeight: 52 }}>
+                {liveValue}
+              </Text>
+              <Text className="text-lg text-muted-foreground font-medium"> {unit}</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Ruler strip */}
@@ -163,6 +216,7 @@ export function RulerWheel({
           <ScrollView
             ref={scrollRef}
             horizontal
+            scrollEnabled={!editing}
             showsHorizontalScrollIndicator={false}
             snapToInterval={TICK_WIDTH}
             decelerationRate="fast"

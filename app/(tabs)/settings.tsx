@@ -131,8 +131,11 @@ function StepperRow({
             autoFocus
           />
         ) : (
-          <Pressable onPress={() => { setText(String(value)); setEditing(true); }}>
-            <Text className="text-base font-semibold text-foreground min-w-16 text-center tabular-nums">
+          <Pressable
+            onPress={() => { setText(String(value)); setEditing(true); }}
+            className="bg-muted border border-border rounded-md px-3 py-3 min-w-16 max-w-24 items-center active:opacity-70"
+          >
+            <Text className="text-base font-semibold text-foreground text-center tabular-nums">
               {value}{unit ? ` ${unit}` : ''}
             </Text>
           </Pressable>
@@ -373,9 +376,11 @@ export default function SettingsTab() {
         aria-label={`Default weight: ${defaultWeight} ${weightUnit}. Tap to change`}
       >
         <Text className="text-base text-foreground flex-1">Weight</Text>
-        <Text className="text-base font-semibold text-foreground tabular-nums">
-          {defaultWeight} {weightUnit}
-        </Text>
+        <View className="bg-muted border border-border rounded-md px-3 py-1.5">
+          <Text className="text-base font-semibold text-foreground tabular-nums">
+            {defaultWeight} {weightUnit}
+          </Text>
+        </View>
       </Pressable>
       <Pressable
         className="flex-row items-center px-4 py-3 border-b border-border active:bg-muted/50"
@@ -383,9 +388,11 @@ export default function SettingsTab() {
         aria-label={`Default reps: ${defaultReps}. Tap to change`}
       >
         <Text className="text-base text-foreground flex-1">Reps</Text>
-        <Text className="text-base font-semibold text-foreground tabular-nums">
-          {defaultReps} reps
-        </Text>
+        <View className="bg-muted border border-border rounded-md px-3 py-1.5">
+          <Text className="text-base font-semibold text-foreground tabular-nums">
+            {defaultReps} reps
+          </Text>
+        </View>
       </Pressable>
 
       <SectionHeader title="Appearance" />
