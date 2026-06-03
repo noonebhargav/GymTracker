@@ -62,6 +62,11 @@ export function RulerWheel({
     setLiveValue(value);
   }, [value]);
 
+  // Mirror the latest `value` so commitEdit always compares against the current
+  // prop, even if a quick-step tap moved it while the inline editor was focused.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   const steps = Math.round((max - min) / step);
   const defaultQuickSteps = unit === 'reps' ? [-5, -1, 1, 5] : [-10, -5, 5, 10, 25];
   const qSteps = quickSteps ?? defaultQuickSteps;
@@ -112,6 +117,8 @@ export function RulerWheel({
     [min, max, step, onChange, value]
   );
 
+  // Reads the closed-over `value` directly (unlike commitEdit's valueRef): this
+  // fires synchronously from a button tap, so the closure value is always current.
   const applyQuickStep = useCallback(
     (delta: number) => {
       const newVal = clamp(value + delta, min, max);
@@ -129,12 +136,12 @@ export function RulerWheel({
       const stepped = min + Math.round((clamp(parsed, min, max) - min) / step) * step;
       const newVal = clamp(stepped, min, max);
       setLiveValue(newVal);
-      if (newVal !== value) onChange(newVal);
+      if (newVal !== valueRef.current) onChange(newVal);
       scrollRef.current?.scrollTo({ x: valueToOffset(newVal), animated: false });
     }
     setDraft('');
     setEditing(false);
-  }, [draft, min, max, step, value, onChange, valueToOffset]);
+  }, [draft, min, max, step, onChange, valueToOffset]);
 
   // Lift the bottom-anchored sheet above the keyboard while editing the value.
   const keyboard = useAnimatedKeyboard();
