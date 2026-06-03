@@ -39,8 +39,8 @@ PRs rank by raw `MAX(weight)`, ignoring reps (a 100×1 outranks a 95×10).
 
 **4b. Insights heatmap — `components/history/insights-tab.tsx`**
 - Use `getBodyPartVolumes`; roll up with `toGoldStandardGroup(row.body_part, row.target)`, summing `volume` + `set_count` per group (set-weighted by construction).
-- **Intensity** = group volume ÷ max volume across **strength** groups (exclude Cardio from the max).
-- **Cardio** (`volume ≈ 0`): excluded from the volume normalization; tile shows **set count** (`"8 sets"`) with a fixed faint tint when `set_count > 0`. *(The one accepted metric compromise — documented here.)*
+- **Intensity** = group volume ÷ max volume across groups that have real volume.
+- **Count-based groups** (`volume === 0 && set_count > 0`) — cardio AND bodyweight work (weight 0, e.g. planks, pull-ups): excluded from the volume normalization; tile shows **set count** (`"8 sets"`) with a fixed faint tint, rather than misreporting as "Rest". *(Chart + PRs remain strictly volume/1RM-based, so pure-bodyweight weeks still read as empty there — an accepted limitation.)*
 - Strength tile value: `formatVolume(volume, unit)` + unit; empty groups still show "Rest".
 - Add `accessibilityLabel` to each tile (e.g. `"Chest, 12.3k lbs volume"` / `"Biceps, rest"`).
 

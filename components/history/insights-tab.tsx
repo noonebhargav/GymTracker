@@ -144,9 +144,10 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
 
   // --- Heatmap data ---
   // Volume (Σ weight×reps) per Gold Standard group, set-weighted by summing across
-  // every (body_part, target) row that maps into the group. Cardio is special-cased:
-  // its volume is ~0 (bodyweight), so it's shown by set count and kept out of the
-  // volume color scale rather than always reading as "Rest".
+  // every (body_part, target) row that maps into the group. Groups with sets but no
+  // external load — cardio AND bodyweight work (weight 0, e.g. planks, pull-ups) —
+  // have volume ~0, so they're shown by set count and kept out of the volume color
+  // scale rather than misreporting as "Rest".
   const heatmapData = useMemo(() => {
     const grouped = new Map<string, { volume: number; setCount: number }>();
     for (const row of bodyPartRows) {
@@ -160,23 +161,23 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
     }
     const cells = GOLD_STANDARD_GROUPS.map((group) => {
       const entry = grouped.get(group);
+      const volume = entry?.volume ?? 0;
+      const setCount = entry?.setCount ?? 0;
       return {
         group,
-        volume: entry?.volume ?? 0,
-        setCount: entry?.setCount ?? 0,
-        isCardio: group === 'Cardio',
+        volume,
+        setCount,
+        // Worked but with no measurable load → display by set count, not volume.
+        countBased: volume === 0 && setCount > 0,
       };
     });
-    // Normalize intensity against the heaviest strength group only.
-    const maxVolume = Math.max(
-      ...cells.filter((c) => !c.isCardio).map((c) => c.volume),
-      1
-    );
+    // Color scale spans only groups that have real volume.
+    const maxVolume = Math.max(...cells.filter((c) => c.volume > 0).map((c) => c.volume), 1);
     return cells.map((c) => ({
       ...c,
-      // Cardio gets a fixed faint tint when active; strength scales with volume.
-      intensity: c.isCardio ? (c.setCount > 0 ? 0.35 : 0) : c.volume / maxVolume,
-      active: c.isCardio ? c.setCount > 0 : c.volume > 0,
+      // Count-based groups get a fixed faint tint; volume groups scale with load.
+      intensity: c.countBased ? 0.35 : c.volume / maxVolume,
+      active: c.volume > 0 || c.setCount > 0,
     }));
   }, [bodyPartRows]);
 
@@ -288,10 +289,10 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
         </View>
 
         <View className="flex-row flex-wrap gap-2">
-          {heatmapData.map(({ group, volume, setCount, isCardio, intensity, active }) => {
+          {heatmapData.map(({ group, volume, setCount, countBased, intensity, active }) => {
             const valueText = !active
               ? null
-              : isCardio
+              : countBased
                 ? `${setCount} ${setCount === 1 ? 'set' : 'sets'}`
                 : `${formatVolume(volume, weightUnit)} ${weightUnit}`;
             return (
@@ -306,7 +307,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
                     ? rgba(accentRgb, 0.08 + intensity * 0.45)
                     : undefined,
                 }}
-                accessibilityLabel={`${group}, ${active ? `${valueText}${isCardio ? '' : ' volume'}` : 'rest'}`}
+                accessibilityLabel={`${group}, ${active ? `${valueText}${countBased ? '' : ' volume'}` : 'rest'}`}
               >
                 <Text className="text-[10px] font-semibold text-muted-foreground mb-1" numberOfLines={1}>
                   {group}
