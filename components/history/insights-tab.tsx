@@ -153,6 +153,8 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const heatmapData = useMemo(() => {
     const grouped = new Map<string, { volume: number; setCount: number }>();
     for (const row of bodyPartRows) {
+      // workout_logs.body_part already stores the Gold Standard group name
+      // (written via toGoldStandardGroup at log time), so use it directly.
       const group = (GOLD_STANDARD_GROUPS as readonly string[]).includes(row.body_part)
         ? (row.body_part as GoldStandardGroup)
         : null;
