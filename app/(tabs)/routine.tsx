@@ -105,7 +105,7 @@ export default function RoutineTab() {
   return (
     <ScreenWrapper>
       <Tabs value={selectedDay} onValueChange={setSelectedDay} className="flex-1">
-        <View className="border-b border-border px-4 pt-3 pb-2">
+        <View className="px-4 pt-3 pb-2">
           {/* Selected-day label, styled to match the Workout screen header. */}
           <Text className="text-[13px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
             {DAYS[Number(selectedDay)].full}
