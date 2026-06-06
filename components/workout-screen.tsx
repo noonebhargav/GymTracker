@@ -68,7 +68,7 @@ type TodayGroup = {
 // the full exercise library by switching to the All tab (search text persists).
 function SearchEmptyState({ label }: { label: string }) {
   return (
-    <View className="flex-1 items-center justify-center px-8">
+    <View className="flex-1 items-center px-8 pt-12">
       <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
       <Text className="text-base text-muted-foreground text-center" numberOfLines={2}>
         No exercises found for {label}
