@@ -1,6 +1,6 @@
 import { Uniwind } from 'uniwind';
 
-export type AccentColor = {
+type AccentColor = {
   name: string;
   key: string;
   // Per-theme primary fill + its foreground text + focus ring. Light variants are

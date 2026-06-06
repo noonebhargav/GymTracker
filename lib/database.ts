@@ -16,9 +16,7 @@ export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
   return value / LBS_FACTOR;
 }
 
-// Volume (Σ weight × reps) is a large sum, not a single liftable weight, so it
-// converts linearly with no 2.5-grid snapping (unlike displayWeight).
-export function displayVolume(kg: number, unit: 'lbs' | 'kg'): number {
+function displayVolume(kg: number, unit: 'lbs' | 'kg'): number {
   return unit === 'kg' ? kg : kg * LBS_FACTOR;
 }
 
@@ -129,45 +127,11 @@ export async function initAndSeedDatabase(db: SQLiteDatabase): Promise<void> {
   );
 }
 
-export async function getExerciseCount(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM exercises'
-  );
-  return row?.count ?? 0;
-}
-
 export async function getAllExercises(
   db: SQLiteDatabase
 ): Promise<ExerciseRow[]> {
   return db.getAllAsync<ExerciseRow>(
     'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises ORDER BY name'
-  );
-}
-
-export async function searchExercises(
-  db: SQLiteDatabase,
-  query: string
-): Promise<ExerciseRow[]> {
-  const pattern = `%${query}%`;
-  return db.getAllAsync<ExerciseRow>(
-    `SELECT id, name, body_part, target, muscle_group, equipment, assetId
-     FROM exercises
-     WHERE name LIKE ? OR body_part LIKE ? OR target LIKE ? OR equipment LIKE ?
-     ORDER BY name`,
-    pattern,
-    pattern,
-    pattern,
-    pattern
-  );
-}
-
-export async function getExercisesByEquipment(
-  db: SQLiteDatabase,
-  equipment: string
-): Promise<ExerciseRow[]> {
-  return db.getAllAsync<ExerciseRow>(
-    'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises WHERE equipment = ? ORDER BY name',
-    equipment
   );
 }
 
@@ -438,18 +402,6 @@ export async function getWorkoutSetsForDate(
     'SELECT set_number, weight, reps FROM workout_logs WHERE date_logged = ? AND exercise_id = ? ORDER BY set_number',
     date,
     exerciseId
-  );
-}
-
-export type WorkoutDateRow = {
-  date_logged: string;
-};
-
-export async function getWorkoutDates(
-  db: SQLiteDatabase
-): Promise<WorkoutDateRow[]> {
-  return db.getAllAsync<WorkoutDateRow>(
-    'SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged'
   );
 }
 

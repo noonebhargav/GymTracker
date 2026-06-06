@@ -50,7 +50,7 @@ export function toGoldStandardGroup(
   }
 }
 
-export const EQUIPMENT_TYPES = [
+const EQUIPMENT_TYPES = [
   'assisted',
   'band',
   'barbell',
@@ -81,7 +81,7 @@ export const EQUIPMENT_TYPES = [
   'wheel roller',
 ] as const;
 
-export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
+type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 
 export const PRIMARY_EQUIPMENT: readonly string[] = [
   'body weight',
@@ -109,10 +109,6 @@ const PRIMARY_EQUIPMENT_SET = new Set<string>(PRIMARY_EQUIPMENT);
 export function toConsolidatedEquipment(raw: string): string {
   if (PRIMARY_EQUIPMENT_SET.has(raw)) return raw;
   return OTHER_EQUIPMENT_LABEL;
-}
-
-export function isOtherEquipment(raw: string): boolean {
-  return !PRIMARY_EQUIPMENT_SET.has(raw);
 }
 
 export const OTHER_EQUIPMENT_TYPES: string[] = EQUIPMENT_TYPES.filter(
