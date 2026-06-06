@@ -37,7 +37,7 @@ export function TabBar({ state, descriptors, navigation, activeColor }: BottomTa
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
         const iconColor = isFocused ? primary : mutedColor;
-        const labelColor = isFocused ? colors.text : mutedColor;
+        const labelColor = isFocused ? primary : mutedColor;
         const label = LABELS[route.name] ?? options.title ?? route.name;
 
         function onPress() {
