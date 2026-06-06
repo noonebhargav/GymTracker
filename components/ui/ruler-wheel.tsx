@@ -5,14 +5,17 @@ import {
   ScrollView,
   Pressable,
   TextInput,
+  BackHandler,
   useWindowDimensions,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
 } from 'react-native';
+import { useNavigation } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { useUniwind } from 'uniwind';
 import { THEME } from '@/lib/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Portal } from '@rn-primitives/portal';
 import Animated, {
   FadeIn,
   SlideInDown,
@@ -54,6 +57,11 @@ export function RulerWheel({
   const { width: screenWidth } = useWindowDimensions();
   const { bottom } = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  // The sheet is rendered through a Portal, so the ScrollView mounts on a later
+  // commit than this component. We can't scroll to the initial value from a mount
+  // effect (the ref is still null); instead we do it once from onContentSizeChange.
+  const didInitScroll = useRef(false);
+  const navigation = useNavigation();
   const [liveValue, setLiveValue] = useState(value);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -87,10 +95,23 @@ export function RulerWheel({
     [min, step]
   );
 
+  // While the sheet is open, the back gesture / button should dismiss it instead
+  // of navigating the underlying screen (the sheet lives in a root Portal, so an
+  // un-intercepted back leaves it stranded over a transitioning screen).
   useEffect(() => {
-    const offset = valueToOffset(value);
-    scrollRef.current?.scrollTo({ x: offset, animated: false });
-  }, []);
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onDone();
+      return true;
+    });
+    const unsubBeforeRemove = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      onDone();
+    });
+    return () => {
+      sub.remove();
+      unsubBeforeRemove();
+    };
+  }, [navigation, onDone]);
 
   const onScrollEvent = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -145,15 +166,24 @@ export function RulerWheel({
 
   // Lift the bottom-anchored sheet above the keyboard while editing the value.
   const keyboard = useAnimatedKeyboard();
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -keyboard.height.value }],
-  }));
+  const sheetStyle = useAnimatedStyle(() => {
+    // The keyboard height includes the bottom safe-area inset, which the sheet
+    // already accounts for via `paddingBottom: bottom + 8`. Subtract it so the
+    // content sits flush above the keyboard instead of leaving a gap.
+    const kb = keyboard.height.value;
+    const shift = kb > 0 ? Math.max(kb - (bottom + 8), 0) : 0;
+    return { transform: [{ translateY: -shift }] };
+  });
 
   const padding = screenWidth / 2 - TICK_WIDTH / 2;
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-      {/* Backdrop */}
+    <Portal name="ruler-wheel">
+      {/* Rendered into the root PortalHost so the sheet + backdrop span the whole
+          screen (over the tab bar). This anchors `bottom: 0` to the device bottom,
+          which is where `useAnimatedKeyboard` measures the keyboard from. */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        {/* Backdrop */}
       <Animated.View
         entering={FadeIn.duration(150)}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)' }}
@@ -231,6 +261,13 @@ export function RulerWheel({
             scrollEventThrottle={16}
             onScrollEndDrag={onScrollEnd}
             onMomentumScrollEnd={onScrollEnd}
+            onContentSizeChange={() => {
+              // First layout after the Portal mounts the ScrollView: jump to the
+              // initial value. Guarded so later content-size changes don't reset it.
+              if (didInitScroll.current) return;
+              didInitScroll.current = true;
+              scrollRef.current?.scrollTo({ x: valueToOffset(value), animated: false });
+            }}
             contentContainerStyle={{ paddingHorizontal: padding }}
           >
             {Array.from({ length: steps + 1 }, (_, i) => {
@@ -296,6 +333,7 @@ export function RulerWheel({
           ))}
         </View>
       </Animated.View>
-    </View>
+      </View>
+    </Portal>
   );
 }
