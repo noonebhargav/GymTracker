@@ -149,11 +149,13 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         getWorkoutLogsForToday(db, today),
         getAllRoutines(db),
         getWorkoutStreak(db),
-      ]).then(([qe, todayLogs, routs, s]) => {
+        getSetting(db, 'weight_unit'),
+      ]).then(([qe, todayLogs, routs, s, wu]) => {
         setQueueEnabled((qe ?? DEFAULTS.queue_enabled) === 'true');
         setCompletedToday(new Set(todayLogs.map((r) => r.exercise_id)));
         setStreak(s);
         setRoutines(buildRoutineMap(routs));
+        setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       });
     }, [db, today])
   );
