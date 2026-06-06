@@ -595,27 +595,26 @@ export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
 
 export type BodyPartVolumeRow = {
   body_part: string;
-  target: string | null;
   volume: number;
   set_count: number;
 };
 
-// Per (body_part, target) training volume. Joins `exercises` for `target` so the
-// caller can split `upper arms` into Biceps/Triceps via toGoldStandardGroup.
+// Per body-part training volume. `workout_logs.body_part` already stores the resolved
+// Gold Standard group (written via toGoldStandardGroup at log time), so no join to
+// `exercises` is needed — and grouping on `workout_logs` alone keeps this consistent
+// with getMonthlyAggregates (no orphaned-log undercount).
 export async function getBodyPartVolumes(
   db: SQLiteDatabase,
   startDate: string,
   endDate: string
 ): Promise<BodyPartVolumeRow[]> {
   return db.getAllAsync<BodyPartVolumeRow>(
-    `SELECT wl.body_part,
-            e.target,
-            SUM(CAST(wl.weight AS REAL) * CAST(wl.reps AS REAL)) as volume,
+    `SELECT body_part,
+            SUM(CAST(weight AS REAL) * CAST(reps AS REAL)) as volume,
             COUNT(*) as set_count
-     FROM workout_logs wl
-     JOIN exercises e ON wl.exercise_id = e.id
-     WHERE wl.date_logged >= ? AND wl.date_logged <= ?
-     GROUP BY wl.body_part, e.target`,
+     FROM workout_logs
+     WHERE date_logged >= ? AND date_logged <= ?
+     GROUP BY body_part`,
     startDate,
     endDate
   );

@@ -112,7 +112,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const loadHeatmap = useCallback(async () => {
     const bpVolumes = await getBodyPartVolumes(db, heatmapStart, heatmapEnd);
     setBodyPartRows(bpVolumes);
-    setHasLoaded(true);
+    // hasLoaded is owned by loadStats; both focus effects fire together on focus.
   }, [db, heatmapStart, heatmapEnd]);
 
   // Two independent focus effects: each refetches on focus and only when its own

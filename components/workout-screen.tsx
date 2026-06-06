@@ -21,6 +21,7 @@ import {
   displayWeight,
   type ExerciseRow,
   type DayWorkoutDetailRow,
+  type RoutineRow,
 } from '@/lib/database';
 import { toGoldStandardGroup, GOLD_STANDARD_GROUPS } from '@/lib/exercise-groups';
 import { getExerciseImage } from '@/lib/exercise-assets';
@@ -53,6 +54,16 @@ const DEFAULTS: Record<string, string> = {
 const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 16, paddingVertical: 8 } as const;
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// day_of_week -> set of body parts scheduled that day.
+function buildRoutineMap(routs: RoutineRow[]): Map<number, Set<string>> {
+  const map = new Map<number, Set<string>>();
+  for (const r of routs) {
+    if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
+    map.get(r.day_of_week)!.add(r.body_part);
+  }
+  return map;
+}
 
 type TodaySetEntry = { setNumber: number; weight: number; reps: number };
 type TodayGroup = {
@@ -115,33 +126,24 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const [loggedYesterdayParts, setLoggedYesterdayParts] = useState<Set<string>>(new Set());
 
+  // Session-static data loaded once. Per-focus freshness (routines, completedToday,
+  // queueEnabled, streak) is owned by the focus effect below.
   useEffect(() => {
     (async () => {
-      const [ex, routs, compIds, wu] = await Promise.all([
+      const [ex, wu] = await Promise.all([
         getAllExercises(db),
-        getAllRoutines(db),
-        getWorkoutLogsForToday(db, today).then((rows) => new Set(rows.map((r) => r.exercise_id))),
         getSetting(db, 'weight_unit'),
       ]);
-
       setExercises(ex);
-      setCompletedToday(compIds);
       setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
-
-      const map = new Map<number, Set<string>>();
-      for (const r of routs) {
-        if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
-        map.get(r.day_of_week)!.add(r.body_part);
-      }
-      setRoutines(map);
-
       setLoaded(true);
     })();
   }, [db, today]);
 
+  // Single owner of per-focus freshness data. Runs on every focus, including the
+  // initial mount-focus, so it doesn't need to wait on `loaded`.
   useFocusEffect(
     useCallback(() => {
-      if (!loaded) return;
       Promise.all([
         getSetting(db, 'queue_enabled'),
         getWorkoutLogsForToday(db, today),
@@ -151,14 +153,9 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         setQueueEnabled((qe ?? DEFAULTS.queue_enabled) === 'true');
         setCompletedToday(new Set(todayLogs.map((r) => r.exercise_id)));
         setStreak(s);
-        const map = new Map<number, Set<string>>();
-        for (const r of routs) {
-          if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
-          map.get(r.day_of_week)!.add(r.body_part);
-        }
-        setRoutines(map);
+        setRoutines(buildRoutineMap(routs));
       });
-    }, [db, loaded, today])
+    }, [db, today])
   );
 
   const todayParts = useMemo(() => {
@@ -242,7 +239,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       if (!aDone && bDone) return 1;
       return 0;
     });
-  }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
+  }, [selectedTab, recentExercises, goldMap, completedToday]);
 
   // Debounce filtering so typing doesn't re-filter the full list on every keystroke.
   // The TextInput stays bound to searchText for instant feedback; only the filter waits.

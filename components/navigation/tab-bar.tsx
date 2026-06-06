@@ -36,8 +36,7 @@ export function TabBar({ state, descriptors, navigation, activeColor }: BottomTa
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
-        const iconColor = isFocused ? primary : mutedColor;
-        const labelColor = isFocused ? primary : mutedColor;
+        const tintColor = isFocused ? primary : mutedColor;
         const label = LABELS[route.name] ?? options.title ?? route.name;
 
         function onPress() {
@@ -78,10 +77,10 @@ export function TabBar({ state, descriptors, navigation, activeColor }: BottomTa
                 }}
               />
             )}
-            {options.tabBarIcon?.({ focused: isFocused, color: iconColor, size: 24 })}
+            {options.tabBarIcon?.({ focused: isFocused, color: tintColor, size: 24 })}
             <RNText
               style={{
-                color: labelColor,
+                color: tintColor,
                 fontSize: 12,
                 fontWeight: isFocused ? '600' : '400',
                 marginTop: 4,
