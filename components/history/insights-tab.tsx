@@ -4,17 +4,19 @@ import { Icon } from '@/components/ui/icon';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
+import { useCSSVariable } from 'uniwind';
 import { Trophy } from 'lucide-react-native';
 import {
   getMonthlyAggregates,
-  getBodyPartAvgWeights,
+  getBodyPartVolumes,
   getWindowPRs,
   displayWeight,
+  formatVolume,
   type DayAggregateRow,
-  type BodyPartAvgRow,
+  type BodyPartVolumeRow,
   type WindowPRRow,
 } from '@/lib/database';
-import { GOLD_STANDARD_GROUPS, toGoldStandardGroup } from '@/lib/exercise-groups';
+import { GOLD_STANDARD_GROUPS, type GoldStandardGroup } from '@/lib/exercise-groups';
 import { capitalizeWords } from '@/lib/utils';
 import { useAccentHex } from '@/lib/accent-store';
 
@@ -77,6 +79,7 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const db = useSQLiteContext();
   const accentHex = useAccentHex();
   const accentRgb = useMemo(() => hexToRgb(accentHex), [accentHex]);
+  const secondaryBg = useCSSVariable('--color-secondary') as string | undefined;
 
   // --- Chart weeks for the selected month ---
   const weeks = useMemo(() => buildMonthWeeks(year, month), [year, month]);
@@ -92,8 +95,9 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   const heatmapEnd = selectedMonday ? addDays(selectedMonday, 6) : today;
 
   const [dailyAggs, setDailyAggs] = useState<DayAggregateRow[]>([]);
-  const [bodyPartRows, setBodyPartRows] = useState<BodyPartAvgRow[]>([]);
+  const [bodyPartRows, setBodyPartRows] = useState<BodyPartVolumeRow[]>([]);
   const [prRows, setPrRows] = useState<WindowPRRow[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadStats = useCallback(async () => {
     const [aggs, prs] = await Promise.all([
@@ -102,11 +106,13 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
     ]);
     setDailyAggs(aggs);
     setPrRows(prs);
+    setHasLoaded(true);
   }, [db, chartStart, chartEnd, monthStart, monthEnd]);
 
   const loadHeatmap = useCallback(async () => {
-    const bpAvgs = await getBodyPartAvgWeights(db, heatmapStart, heatmapEnd);
-    setBodyPartRows(bpAvgs);
+    const bpVolumes = await getBodyPartVolumes(db, heatmapStart, heatmapEnd);
+    setBodyPartRows(bpVolumes);
+    // hasLoaded is owned by loadStats; both focus effects fire together on focus.
   }, [db, heatmapStart, heatmapEnd]);
 
   // Two independent focus effects: each refetches on focus and only when its own
@@ -115,57 +121,85 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
   useFocusEffect(useCallback(() => { loadHeatmap(); }, [loadHeatmap]));
 
-  const weekAvgs = useMemo(() => {
-    const map = new Map<string, { totalWeight: number; count: number }>();
+  const weekVolumes = useMemo(() => {
+    const map = new Map<string, number>();
     for (const a of dailyAggs) {
       const mon = getMondayOfWeek(a.date_logged);
-      const existing = map.get(mon) ?? { totalWeight: 0, count: 0 };
-      map.set(mon, {
-        totalWeight: existing.totalWeight + a.avg_weight * a.set_count,
-        count: existing.count + a.set_count,
-      });
+      map.set(mon, (map.get(mon) ?? 0) + a.volume);
     }
-    return weeks.map((mon) => {
-      const entry = map.get(mon);
-      if (!entry || entry.count === 0) return 0;
-      return entry.totalWeight / entry.count;
-    });
+    return weeks.map((mon) => map.get(mon) ?? 0);
   }, [dailyAggs, weeks]);
 
-  const chartMax = useMemo(() => Math.max(...weekAvgs, 1), [weekAvgs]);
+  const chartMax = useMemo(() => Math.max(...weekVolumes, 1), [weekVolumes]);
   // Latest week in the month that has data drives the header number + delta.
   const lastIdx = useMemo(() => {
-    for (let i = weekAvgs.length - 1; i >= 0; i--) {
-      if (weekAvgs[i] > 0) return i;
+    for (let i = weekVolumes.length - 1; i >= 0; i--) {
+      if (weekVolumes[i] > 0) return i;
     }
     return -1;
-  }, [weekAvgs]);
-  const lastWeekAvg = lastIdx >= 0 ? weekAvgs[lastIdx] : 0;
-  const prevWeekAvg = lastIdx > 0 ? weekAvgs[lastIdx - 1] : 0;
-  const delta = prevWeekAvg > 0 && lastWeekAvg > 0
-    ? Math.round(((lastWeekAvg - prevWeekAvg) / prevWeekAvg) * 100)
+  }, [weekVolumes]);
+  const lastWeekVolume = lastIdx >= 0 ? weekVolumes[lastIdx] : 0;
+  const prevWeekVolume = lastIdx > 0 ? weekVolumes[lastIdx - 1] : 0;
+  const delta = prevWeekVolume > 0 && lastWeekVolume > 0
+    ? Math.round(((lastWeekVolume - prevWeekVolume) / prevWeekVolume) * 100)
     : null;
 
   // --- Heatmap data ---
+  // Volume (Σ weight×reps) per Gold Standard group, set-weighted by summing across
+  // every (body_part, target) row that maps into the group. Groups with sets but no
+  // external load — cardio AND bodyweight work (weight 0, e.g. planks, pull-ups) —
+  // have volume ~0, so they're shown by set count and kept out of the volume color
+  // scale rather than misreporting as "Rest".
   const heatmapData = useMemo(() => {
-    const grouped = new Map<string, { total: number; count: number }>();
+    const grouped = new Map<string, { volume: number; setCount: number }>();
     for (const row of bodyPartRows) {
-      const group = toGoldStandardGroup(row.body_part);
+      // workout_logs.body_part already stores the Gold Standard group name
+      // (written via toGoldStandardGroup at log time), so use it directly.
+      const group = (GOLD_STANDARD_GROUPS as readonly string[]).includes(row.body_part)
+        ? (row.body_part as GoldStandardGroup)
+        : null;
       if (!group) continue;
-      const existing = grouped.get(group) ?? { total: 0, count: 0 };
+      const existing = grouped.get(group) ?? { volume: 0, setCount: 0 };
       grouped.set(group, {
-        total: existing.total + row.avg_weight,
-        count: existing.count + 1,
+        volume: existing.volume + row.volume,
+        setCount: existing.setCount + row.set_count,
       });
     }
     const cells = GOLD_STANDARD_GROUPS.map((group) => {
       const entry = grouped.get(group);
-      const avg = entry ? entry.total / entry.count : 0;
-      return { group, avg };
+      const volume = entry?.volume ?? 0;
+      const setCount = entry?.setCount ?? 0;
+      return {
+        group,
+        volume,
+        setCount,
+        // Worked but with no measurable load → display by set count, not volume.
+        countBased: volume === 0 && setCount > 0,
+      };
     });
-    const maxAvg = Math.max(...cells.map((c) => c.avg), 1);
-    return cells.map((c) => ({ ...c, intensity: c.avg / maxAvg }));
+    // Color scale spans only groups that have real volume.
+    const maxVolume = Math.max(...cells.filter((c) => c.volume > 0).map((c) => c.volume), 1);
+    return cells.map((c) => ({
+      ...c,
+      // Count-based groups get a fixed faint tint; volume groups scale with load.
+      intensity: c.countBased ? 0.35 : c.volume / maxVolume,
+      active: c.volume > 0 || c.setCount > 0,
+    }));
   }, [bodyPartRows]);
+
+  const isEmpty =
+    hasLoaded && dailyAggs.length === 0 && bodyPartRows.length === 0 && prRows.length === 0;
+
+  if (isEmpty) {
+    return (
+      <View className="flex-1 items-center justify-center p-8">
+        <Text className="text-base font-semibold text-foreground mb-1">No insights yet</Text>
+        <Text className="text-sm text-muted-foreground text-center">
+          Log a workout to start tracking your volume, body parts, and personal records.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -176,12 +210,12 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
       <View className="bg-card border border-border rounded-xl p-4">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-            Weekly avg weight
+            Weekly volume
           </Text>
           <View className="flex-row items-center gap-2">
-            {lastWeekAvg > 0 && (
+            {lastWeekVolume > 0 && (
               <Text className="text-sm font-bold text-foreground">
-                {Math.round(displayWeight(lastWeekAvg, weightUnit))} {weightUnit}
+                {formatVolume(lastWeekVolume, weightUnit)} {weightUnit}
               </Text>
             )}
             {delta !== null && (
@@ -207,9 +241,9 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
         {/* Bars — tap to inspect that week's body parts */}
         <View className="flex-row items-end gap-1" style={{ height: 100 }}>
           {weeks.map((mon, i) => {
-            const avg = weekAvgs[i];
-            const hasData = avg > 0;
-            const barHeight = hasData ? Math.max(4, (avg / chartMax) * 96) : 4;
+            const vol = weekVolumes[i];
+            const hasData = vol > 0;
+            const barHeight = hasData ? Math.max(4, (vol / chartMax) * 96) : 4;
             const isSelected = selectedMonday === mon;
             const dimmed = selectedMonday !== null && !isSelected;
             return (
@@ -261,31 +295,38 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
         </View>
 
         <View className="flex-row flex-wrap gap-2">
-          {heatmapData.map(({ group, avg, intensity }) => (
-            <View
-              key={group}
-              className="rounded-xl p-3 bg-secondary"
-              style={{
-                width: '22%',
-                minWidth: 72,
-                flex: 1,
-                backgroundColor: avg > 0
-                  ? rgba(accentRgb, 0.08 + intensity * 0.45)
-                  : undefined,
-              }}
-            >
-              <Text className="text-[10px] font-semibold text-muted-foreground mb-1" numberOfLines={1}>
-                {group}
-              </Text>
-              {avg > 0 ? (
-                <Text className="text-xs font-bold text-foreground">
-                  {Math.round(displayWeight(avg, weightUnit))} {weightUnit}
+          {heatmapData.map(({ group, volume, setCount, countBased, intensity, active }) => {
+            const valueText = !active
+              ? null
+              : countBased
+                ? `${setCount} ${setCount === 1 ? 'set' : 'sets'}`
+                : `${formatVolume(volume, weightUnit)} ${weightUnit}`;
+            return (
+              <View
+                key={group}
+                style={{
+                  width: '22%',
+                  minWidth: 72,
+                  flex: 1,
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: active
+                    ? rgba(accentRgb, 0.08 + intensity * 0.45)
+                    : secondaryBg,
+                }}
+                accessibilityLabel={`${group}, ${active ? `${valueText}${countBased ? '' : ' volume'}` : 'rest'}`}
+              >
+                <Text className={`text-[10px] font-semibold mb-1 ${active ? 'text-foreground' : 'text-muted-foreground'}`} numberOfLines={1}>
+                  {group}
                 </Text>
-              ) : (
-                <Text className="text-xs text-muted-foreground">Rest</Text>
-              )}
-            </View>
-          ))}
+                {active ? (
+                  <Text className="text-xs font-bold text-foreground">{valueText}</Text>
+                ) : (
+                  <Text className="text-xs text-muted-foreground">Rest</Text>
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {/* Legend */}
@@ -329,12 +370,17 @@ export function InsightsTab({ year, month, today, weightUnit }: InsightsTabProps
                     {capitalizeWords(pr.exercise_name)}
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    {formatShortDate(pr.best_date)}
+                    {Math.round(displayWeight(pr.weight, weightUnit))} {weightUnit} × {pr.reps} · {formatShortDate(pr.best_date)}
                   </Text>
                 </View>
-                <Text className="text-sm font-bold text-foreground">
-                  {Math.round(displayWeight(pr.max_weight, weightUnit))} {weightUnit}
-                </Text>
+                <View className="items-end">
+                  <Text className="text-sm font-bold text-foreground">
+                    {Math.round(displayWeight(pr.est_1rm, weightUnit))} {weightUnit}
+                  </Text>
+                  <Text className="text-[9px] font-semibold text-muted-foreground tracking-widest">
+                    EST. 1RM
+                  </Text>
+                </View>
               </View>
             </View>
           ))

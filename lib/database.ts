@@ -16,6 +16,18 @@ export function toKg(value: number, fromUnit: 'lbs' | 'kg'): number {
   return value / LBS_FACTOR;
 }
 
+function displayVolume(kg: number, unit: 'lbs' | 'kg'): number {
+  return unit === 'kg' ? kg : kg * LBS_FACTOR;
+}
+
+// Compact display for volume totals: "12.3k" for >= 1000, rounded integer otherwise.
+// Caller appends the unit.
+export function formatVolume(kg: number, unit: 'lbs' | 'kg'): string {
+  const v = displayVolume(kg, unit);
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return String(Math.round(v));
+}
+
 type ExerciseSeed = {
   id: string;
   name: string;
@@ -115,45 +127,11 @@ export async function initAndSeedDatabase(db: SQLiteDatabase): Promise<void> {
   );
 }
 
-export async function getExerciseCount(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM exercises'
-  );
-  return row?.count ?? 0;
-}
-
 export async function getAllExercises(
   db: SQLiteDatabase
 ): Promise<ExerciseRow[]> {
   return db.getAllAsync<ExerciseRow>(
     'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises ORDER BY name'
-  );
-}
-
-export async function searchExercises(
-  db: SQLiteDatabase,
-  query: string
-): Promise<ExerciseRow[]> {
-  const pattern = `%${query}%`;
-  return db.getAllAsync<ExerciseRow>(
-    `SELECT id, name, body_part, target, muscle_group, equipment, assetId
-     FROM exercises
-     WHERE name LIKE ? OR body_part LIKE ? OR target LIKE ? OR equipment LIKE ?
-     ORDER BY name`,
-    pattern,
-    pattern,
-    pattern,
-    pattern
-  );
-}
-
-export async function getExercisesByEquipment(
-  db: SQLiteDatabase,
-  equipment: string
-): Promise<ExerciseRow[]> {
-  return db.getAllAsync<ExerciseRow>(
-    'SELECT id, name, body_part, target, muscle_group, equipment, assetId FROM exercises WHERE equipment = ? ORDER BY name',
-    equipment
   );
 }
 
@@ -427,18 +405,6 @@ export async function getWorkoutSetsForDate(
   );
 }
 
-export type WorkoutDateRow = {
-  date_logged: string;
-};
-
-export async function getWorkoutDates(
-  db: SQLiteDatabase
-): Promise<WorkoutDateRow[]> {
-  return db.getAllAsync<WorkoutDateRow>(
-    'SELECT DISTINCT date_logged FROM workout_logs ORDER BY date_logged'
-  );
-}
-
 export type DateRangeRow = {
   first_date: string | null;
   last_date: string | null;
@@ -491,6 +457,7 @@ export type DayAggregateRow = {
   set_count: number;
   avg_weight: number;
   avg_reps: number;
+  volume: number;
   body_parts: string;
 };
 
@@ -506,6 +473,7 @@ export async function getMonthlyAggregates(
       COUNT(*) as set_count,
       AVG(CAST(weight AS REAL)) as avg_weight,
       AVG(CAST(reps AS REAL)) as avg_reps,
+      COALESCE(SUM(CAST(weight AS REAL) * CAST(reps AS REAL)), 0) as volume,
       GROUP_CONCAT(DISTINCT body_part) as body_parts
     FROM workout_logs
     WHERE date_logged >= ? AND date_logged <= ?
@@ -577,18 +545,25 @@ export async function getWorkoutStreak(db: SQLiteDatabase): Promise<number> {
   return streak;
 }
 
-export type BodyPartAvgRow = {
+export type BodyPartVolumeRow = {
   body_part: string;
-  avg_weight: number;
+  volume: number;
+  set_count: number;
 };
 
-export async function getBodyPartAvgWeights(
+// Per body-part training volume. `workout_logs.body_part` already stores the resolved
+// Gold Standard group (written via toGoldStandardGroup at log time), so no join to
+// `exercises` is needed — and grouping on `workout_logs` alone keeps this consistent
+// with getMonthlyAggregates (no orphaned-log undercount).
+export async function getBodyPartVolumes(
   db: SQLiteDatabase,
   startDate: string,
   endDate: string
-): Promise<BodyPartAvgRow[]> {
-  return db.getAllAsync<BodyPartAvgRow>(
-    `SELECT body_part, AVG(CAST(weight AS REAL)) as avg_weight
+): Promise<BodyPartVolumeRow[]> {
+  return db.getAllAsync<BodyPartVolumeRow>(
+    `SELECT body_part,
+            SUM(CAST(weight AS REAL) * CAST(reps AS REAL)) as volume,
+            COUNT(*) as set_count
      FROM workout_logs
      WHERE date_logged >= ? AND date_logged <= ?
      GROUP BY body_part`,
@@ -600,44 +575,52 @@ export async function getBodyPartAvgWeights(
 export type WindowPRRow = {
   exercise_id: string;
   exercise_name: string;
-  max_weight: number;
+  est_1rm: number;
+  weight: number;
+  reps: number;
   best_date: string;
 };
 
+// PRs ranked by estimated 1RM (Epley: weight * (1 + reps/30)), so heavy-for-reps
+// sets are rewarded fairly. Per exercise, returns the best-1RM set logged in the
+// window — but only when it beats the pre-window best 1RM (a genuinely new record).
 export async function getWindowPRs(
   db: SQLiteDatabase,
   windowStart: string,
   windowEnd: string
 ): Promise<WindowPRRow[]> {
   return db.getAllAsync<WindowPRRow>(
-    `SELECT
-       sub.exercise_id,
-       e.name AS exercise_name,
-       sub.max_weight,
-       (
-         SELECT wl2.date_logged
-         FROM workout_logs wl2
-         WHERE wl2.exercise_id = sub.exercise_id
-           AND wl2.weight = sub.max_weight
-           AND wl2.date_logged >= ?
-           AND wl2.date_logged <= ?
-         ORDER BY wl2.date_logged DESC
-         LIMIT 1
-       ) AS best_date
-     FROM (
-       SELECT wl.exercise_id, MAX(wl.weight) AS max_weight
+    `WITH ranked AS (
+       SELECT
+         wl.exercise_id,
+         CAST(wl.weight AS REAL) AS weight,
+         wl.reps,
+         CAST(wl.weight AS REAL) * (1.0 + CAST(wl.reps AS REAL) / 30.0) AS est_1rm,
+         wl.date_logged,
+         ROW_NUMBER() OVER (
+           PARTITION BY wl.exercise_id
+           ORDER BY CAST(wl.weight AS REAL) * (1.0 + CAST(wl.reps AS REAL) / 30.0) DESC,
+                    wl.date_logged ASC
+         ) AS rn
        FROM workout_logs wl
        WHERE wl.date_logged >= ? AND wl.date_logged <= ?
-         AND wl.weight > COALESCE((
-           SELECT MAX(weight) FROM workout_logs
-           WHERE exercise_id = wl.exercise_id AND date_logged < ?
-         ), 0)
-       GROUP BY wl.exercise_id
-     ) sub
-     JOIN exercises e ON sub.exercise_id = e.id
-     ORDER BY best_date DESC`,
-    windowStart,
-    windowEnd,
+     )
+     SELECT
+       r.exercise_id,
+       e.name AS exercise_name,
+       r.est_1rm,
+       r.weight,
+       r.reps,
+       r.date_logged AS best_date
+     FROM ranked r
+     JOIN exercises e ON r.exercise_id = e.id
+     WHERE r.rn = 1
+       AND r.est_1rm > COALESCE((
+         SELECT MAX(CAST(weight AS REAL) * (1.0 + CAST(reps AS REAL) / 30.0))
+         FROM workout_logs
+         WHERE exercise_id = r.exercise_id AND date_logged < ?
+       ), 0)
+     ORDER BY r.date_logged DESC`,
     windowStart,
     windowEnd,
     windowStart

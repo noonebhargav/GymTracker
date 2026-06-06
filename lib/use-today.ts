@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { formatLocalDate } from '@/lib/date-utils';
 
-export function todayDateStr(): string {
+function todayDateStr(): string {
   return formatLocalDate(new Date());
 }
 

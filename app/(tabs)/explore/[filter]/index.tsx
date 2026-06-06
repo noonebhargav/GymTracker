@@ -1,6 +1,5 @@
 import { getAllExercises, getExercisesByEquipmentList, type ExerciseRow } from '@/lib/database';
 import {
-  GOLD_STANDARD_GROUPS,
   toGoldStandardGroup,
   formatEquipmentLabel,
   OTHER_EQUIPMENT_LABEL,

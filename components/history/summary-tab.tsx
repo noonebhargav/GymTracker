@@ -6,6 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import {
   getMonthlyAggregates,
   displayWeight,
+  formatVolume,
   type DayAggregateRow,
 } from '@/lib/database';
 
@@ -82,7 +83,7 @@ export function SummaryTab({ year, month, weightUnit }: SummaryTabProps) {
     return mondays.map((mon) => {
       const days = aggMap.get(mon) ?? [];
       if (days.length === 0) {
-        return { monday: mon, bodyParts: [], exerciseCount: 0, setCount: 0, avgWeight: 0, avgReps: 0, hasData: false };
+        return { monday: mon, bodyParts: [], exerciseCount: 0, setCount: 0, avgWeight: 0, avgReps: 0, volume: 0, hasData: false };
       }
       const bodyParts = new Set<string>();
       let exerciseCount = 0;
@@ -90,6 +91,7 @@ export function SummaryTab({ year, month, weightUnit }: SummaryTabProps) {
       let totalWeight = 0;
       let totalReps = 0;
       let weightCount = 0;
+      let volume = 0;
       for (const d of days) {
         for (const bp of d.body_parts.split(',').map((s) => s.trim()).filter(Boolean)) {
           bodyParts.add(bp);
@@ -99,6 +101,7 @@ export function SummaryTab({ year, month, weightUnit }: SummaryTabProps) {
         totalWeight += d.avg_weight * d.set_count;
         totalReps += d.avg_reps * d.set_count;
         weightCount += d.set_count;
+        volume += d.volume;
       }
       return {
         monday: mon,
@@ -107,6 +110,7 @@ export function SummaryTab({ year, month, weightUnit }: SummaryTabProps) {
         setCount,
         avgWeight: weightCount > 0 ? totalWeight / weightCount : 0,
         avgReps: weightCount > 0 ? totalReps / weightCount : 0,
+        volume,
         hasData: true,
       };
     });
@@ -120,6 +124,10 @@ export function SummaryTab({ year, month, weightUnit }: SummaryTabProps) {
       value: `${Math.round(displayWeight(week.avgWeight, weightUnit))} ${weightUnit}`,
     },
     { label: 'AVG REPS', value: String(Math.round(week.avgReps)) },
+    {
+      label: 'VOLUME',
+      value: `${formatVolume(week.volume, weightUnit)} ${weightUnit}`,
+    },
   ];
 
   return (

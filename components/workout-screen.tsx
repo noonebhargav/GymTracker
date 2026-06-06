@@ -4,6 +4,7 @@ import {
   ScrollView,
   TextInput,
   FlatList,
+  Image,
   ActivityIndicator,
 } from 'react-native';
 import { Text } from '@/components/ui/text';
@@ -15,10 +16,15 @@ import {
   getLoggedBodyPartsForDate,
   getRecentExercises,
   getWorkoutLogsForToday,
+  getDayWorkoutDetail,
   getWorkoutStreak,
+  displayWeight,
   type ExerciseRow,
+  type DayWorkoutDetailRow,
+  type RoutineRow,
 } from '@/lib/database';
-import { toGoldStandardGroup } from '@/lib/exercise-groups';
+import { toGoldStandardGroup, GOLD_STANDARD_GROUPS } from '@/lib/exercise-groups';
+import { getExerciseImage } from '@/lib/exercise-assets';
 import { capitalizeWords } from '@/lib/utils';
 import { useToday } from '@/lib/use-today';
 import { mapJsDayToOur } from '@/lib/date-utils';
@@ -29,6 +35,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { router, useFocusEffect } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Dumbbell,
   Flame,
   Search,
   X,
@@ -48,16 +55,43 @@ const TAB_BAR_CONTENT_STYLE = { paddingHorizontal: 16, paddingVertical: 8 } as c
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-function SessionPill({ label }: { label: string }) {
+// day_of_week -> set of body parts scheduled that day.
+function buildRoutineMap(routs: RoutineRow[]): Map<number, Set<string>> {
+  const map = new Map<number, Set<string>>();
+  for (const r of routs) {
+    if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
+    map.get(r.day_of_week)!.add(r.body_part);
+  }
+  return map;
+}
+
+type TodaySetEntry = { setNumber: number; weight: number; reps: number };
+type TodayGroup = {
+  exerciseId: string;
+  name: string;
+  bodyPart: string;
+  equipment: string | null;
+  assetId: string | null;
+  sets: TodaySetEntry[];
+};
+
+// Search returned nothing in a non-"All" tab — offer to re-run the query across
+// the full exercise library by switching to the All tab (search text persists).
+function SearchEmptyState({ label }: { label: string }) {
   return (
-    <View className="bg-primary rounded-full px-2.5 py-1 max-w-[160px]">
-      <Text
-        className="text-[11px] font-semibold text-primary-foreground"
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {label}
+    <View className="flex-1 items-center px-8 pt-12">
+      <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
+      <Text className="text-base text-muted-foreground text-center" numberOfLines={2}>
+        No exercises found for {label}
       </Text>
+      <Pressable
+        onPress={() => router.setParams({ tab: 'all' })}
+        className="mt-4 bg-primary rounded-full px-4 py-2 active:opacity-80"
+        accessibilityRole="button"
+        aria-label="Search in all exercises"
+      >
+        <Text className="text-sm font-semibold text-primary-foreground">Search in All</Text>
+      </Pressable>
     </View>
   );
 }
@@ -73,6 +107,8 @@ export function WorkoutScreen({ tab }: { tab: string }) {
   const [routines, setRoutines] = useState<Map<number, Set<string>>>(new Map());
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
   const [recentExercises, setRecentExercises] = useState<ExerciseRow[]>([]);
+  const [todayDetail, setTodayDetail] = useState<DayWorkoutDetailRow[]>([]);
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [loaded, setLoaded] = useState(false);
 
   const [queueEnabled, setQueueEnabled] = useState(false);
@@ -90,48 +126,38 @@ export function WorkoutScreen({ tab }: { tab: string }) {
 
   const [loggedYesterdayParts, setLoggedYesterdayParts] = useState<Set<string>>(new Set());
 
+  // Session-static data loaded once. Per-focus freshness (routines, completedToday,
+  // queueEnabled, streak) is owned by the focus effect below.
   useEffect(() => {
     (async () => {
-      const [ex, routs, compIds] = await Promise.all([
+      const [ex, wu] = await Promise.all([
         getAllExercises(db),
-        getAllRoutines(db),
-        getWorkoutLogsForToday(db, today).then((rows) => new Set(rows.map((r) => r.exercise_id))),
+        getSetting(db, 'weight_unit'),
       ]);
-
       setExercises(ex);
-      setCompletedToday(compIds);
-
-      const map = new Map<number, Set<string>>();
-      for (const r of routs) {
-        if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
-        map.get(r.day_of_week)!.add(r.body_part);
-      }
-      setRoutines(map);
-
+      setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       setLoaded(true);
     })();
   }, [db, today]);
 
+  // Single owner of per-focus freshness data. Runs on every focus, including the
+  // initial mount-focus, so it doesn't need to wait on `loaded`.
   useFocusEffect(
     useCallback(() => {
-      if (!loaded) return;
       Promise.all([
         getSetting(db, 'queue_enabled'),
         getWorkoutLogsForToday(db, today),
         getAllRoutines(db),
         getWorkoutStreak(db),
-      ]).then(([qe, todayLogs, routs, s]) => {
+        getSetting(db, 'weight_unit'),
+      ]).then(([qe, todayLogs, routs, s, wu]) => {
         setQueueEnabled((qe ?? DEFAULTS.queue_enabled) === 'true');
         setCompletedToday(new Set(todayLogs.map((r) => r.exercise_id)));
         setStreak(s);
-        const map = new Map<number, Set<string>>();
-        for (const r of routs) {
-          if (!map.has(r.day_of_week)) map.set(r.day_of_week, new Set());
-          map.get(r.day_of_week)!.add(r.body_part);
-        }
-        setRoutines(map);
+        setRoutines(buildRoutineMap(routs));
+        setWeightUnit((wu as 'lbs' | 'kg') ?? 'lbs');
       });
-    }, [db, loaded, today])
+    }, [db, today])
   );
 
   const todayParts = useMemo(() => {
@@ -168,6 +194,16 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     });
   }, [db, loaded, todayParts, selectedTab]);
 
+  // Lazy: only fetch today's logged sets while the Today tab is being viewed.
+  // Refetch on focus so edits made in the set editor (which don't change the set
+  // of completed exercise ids) are reflected when returning to this tab.
+  useFocusEffect(
+    useCallback(() => {
+      if (!loaded || selectedTab !== 'today') return;
+      getDayWorkoutDetail(db, today).then(setTodayDetail);
+    }, [db, loaded, selectedTab, today])
+  );
+
   const goldMap = useMemo(() => {
     const map = new Map<string, ExerciseRow[]>();
     for (const ex of exercises) {
@@ -184,10 +220,11 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     if (selectedTab === 'recent') {
       result = recentExercises;
     } else if (selectedTab === 'all') {
+      // Entire exercise library across all Gold Standard groups, deduped.
       const ids = new Set<string>();
       result = [];
-      for (const part of todayParts) {
-        for (const ex of goldMap.get(part) ?? []) {
+      for (const group of GOLD_STANDARD_GROUPS) {
+        for (const ex of goldMap.get(group) ?? []) {
           if (!ids.has(ex.id)) {
             ids.add(ex.id);
             result.push(ex);
@@ -204,7 +241,7 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       if (!aDone && bDone) return 1;
       return 0;
     });
-  }, [selectedTab, recentExercises, todayParts, goldMap, completedToday]);
+  }, [selectedTab, recentExercises, goldMap, completedToday]);
 
   // Debounce filtering so typing doesn't re-filter the full list on every keystroke.
   // The TextInput stays bound to searchText for instant feedback; only the filter waits.
@@ -223,12 +260,44 @@ export function WorkoutScreen({ tab }: { tab: string }) {
     );
   }, [baseFiltered, debouncedSearch]);
 
+  // Today's completed exercises grouped with their logged sets (Today tab).
+  const todayGroups = useMemo<TodayGroup[]>(() => {
+    const map = new Map<string, DayWorkoutDetailRow[]>();
+    for (const row of todayDetail) {
+      if (!map.has(row.exercise_id)) map.set(row.exercise_id, []);
+      map.get(row.exercise_id)!.push(row);
+    }
+    let groups: TodayGroup[] = [...map.entries()].map(([exerciseId, rows]) => ({
+      exerciseId,
+      name: rows[0].exercise_name,
+      bodyPart: rows[0].body_part,
+      equipment: rows[0].equipment,
+      assetId: rows[0].assetId,
+      sets: rows.map((r) => ({ setNumber: r.set_number, weight: r.weight, reps: r.reps })),
+    }));
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      groups = groups.filter(
+        (g) => g.name.toLowerCase().includes(q) || g.equipment?.toLowerCase().includes(q)
+      );
+    }
+    return groups;
+  }, [todayDetail, debouncedSearch]);
+
   const tabs = useMemo(() => {
-    const t: { key: string; label: string }[] = [{ key: 'recent', label: 'Recent' }];
+    const t: { key: string; label: string }[] = [
+      { key: 'today', label: 'Today' },
+      { key: 'recent', label: 'Recent' },
+    ];
     for (const part of todayParts) t.push({ key: part, label: part });
     t.push({ key: 'all', label: 'All' });
     return t;
   }, [todayParts]);
+
+  const currentTabLabel = useMemo(
+    () => tabs.find((t) => t.key === selectedTab)?.label ?? selectedTab,
+    [tabs, selectedTab]
+  );
 
   // If the selected body-part tab was removed from today's routine (edited on the
   // Routine screen), it's no longer in `tabs` — fall back to Recent so the stale
@@ -276,6 +345,59 @@ export function WorkoutScreen({ tab }: { tab: string }) {
       );
     },
     [completedToday, selectedTab]
+  );
+
+  const renderTodayGroup = useCallback(
+    ({ item }: { item: TodayGroup }) => {
+      const imageSource = getExerciseImage(item.assetId);
+      return (
+        <Pressable
+          className="border-b border-border px-4 py-3.5 active:bg-muted"
+          onPress={() => router.push(`/workout/today/${item.exerciseId}`)}
+          accessibilityRole="button"
+        >
+          <View className="flex-row items-center gap-3 mb-3">
+            {imageSource ? (
+              <Image
+                source={imageSource}
+                className="w-[52px] h-[52px] rounded-[12px] bg-secondary"
+                resizeMode="cover"
+                accessibilityLabel={capitalizeWords(item.name)}
+              />
+            ) : (
+              <View className="w-[52px] h-[52px] rounded-[12px] bg-secondary items-center justify-center">
+                <Icon as={Dumbbell} className="size-6 text-muted-foreground" aria-hidden={true} />
+              </View>
+            )}
+            <View className="flex-1 min-w-0">
+              <Text className="font-semibold text-[15px] text-foreground" numberOfLines={2}>
+                {capitalizeWords(item.name)}
+              </Text>
+              <Text className="text-[13px] text-muted-foreground mt-0.5">
+                {capitalizeWords(item.equipment ?? '') || 'N/A'}
+                {item.bodyPart ? ` · ${item.bodyPart}` : ''}
+              </Text>
+            </View>
+            <Text className="text-xs text-muted-foreground font-medium">
+              {item.sets.length} {item.sets.length === 1 ? 'set' : 'sets'}
+            </Text>
+          </View>
+          <View className="pl-16">
+            {item.sets.map((s) => (
+              <View key={s.setNumber} className="flex-row items-center gap-4 mb-1">
+                <Text className="text-sm text-muted-foreground w-6 tabular-nums">{s.setNumber}</Text>
+                <Text className="text-sm text-foreground tabular-nums">
+                  {displayWeight(s.weight, weightUnit)} {weightUnit}
+                </Text>
+                <Text className="text-sm text-muted-foreground">×</Text>
+                <Text className="text-sm text-foreground tabular-nums">{s.reps} reps</Text>
+              </View>
+            ))}
+          </View>
+        </Pressable>
+      );
+    },
+    [weightUnit]
   );
 
   if (!loaded) {
@@ -365,33 +487,37 @@ export function WorkoutScreen({ tab }: { tab: string }) {
         </View>
       </Tabs>
 
-      {/* Today's session card */}
-      {completedToday.size > 0 && (
-        <View className="mx-4 mb-3 bg-secondary rounded-[14px] p-4">
-          <View className="flex-row items-center justify-between mb-2.5">
-            <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-              Today's session
-            </Text>
-            <Text className="text-[13px] font-bold text-foreground tabular-nums">
-              {completedToday.size} done
-            </Text>
-          </View>
-          <View className="flex-row flex-wrap gap-1.5">
-            {[...completedToday].map((id) => {
-              const e = exercises.find((ex) => ex.id === id);
-              return e ? <SessionPill key={id} label={capitalizeWords(e.name)} /> : null;
-            })}
-          </View>
-        </View>
-      )}
-
-      {/* Exercise list */}
-      {filteredExercises.length === 0 ? (
+      {/* Today tab — completed workouts with logged sets */}
+      {selectedTab === 'today' ? (
+        todayGroups.length === 0 ? (
+          searchText ? (
+            <SearchEmptyState label="Today" />
+          ) : (
+            <View className="flex-1 items-center justify-center px-8">
+              <Text className="text-base text-muted-foreground text-center" numberOfLines={2}>
+                No workouts logged today
+              </Text>
+            </View>
+          )
+        ) : (
+          <FlatList
+            className="flex-1"
+            data={todayGroups}
+            keyExtractor={(item) => item.exerciseId}
+            renderItem={renderTodayGroup}
+            keyboardShouldPersistTaps="handled"
+          />
+        )
+      ) : /* Exercise list */ filteredExercises.length === 0 ? (
         searchText ? (
-          <View className="flex-1 items-center justify-center px-8">
-            <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
-            <Text className="text-base text-muted-foreground text-center">No exercises found</Text>
-          </View>
+          selectedTab === 'all' ? (
+            <View className="flex-1 items-center justify-center px-8">
+              <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
+              <Text className="text-base text-muted-foreground text-center">No exercises found</Text>
+            </View>
+          ) : (
+            <SearchEmptyState label={currentTabLabel} />
+          )
         ) : (
           <View className="flex-1 items-center justify-center px-8">
             <Text className="text-base text-muted-foreground text-center" numberOfLines={2}>

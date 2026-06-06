@@ -86,32 +86,6 @@ function AlertDialogDescription({
   );
 }
 
-/**
- * Wraps children in a destructive button that auto-closes the dialog on press.
- * NOTE: Not suitable for async operations (e.g. confirmations that await a
- * result before closing). Use a manual `<Button>` and `onOpenChange` for those.
- */
-function AlertDialogAction({
-  children,
-  className,
-  onPress,
-  ...props
-}: ButtonProps) {
-  return (
-    <DialogPrimitive.Close asChild>
-      <Button
-        variant="destructive"
-        size="sm"
-        className={className}
-        onPress={onPress}
-        {...props}
-      >
-        {children}
-      </Button>
-    </DialogPrimitive.Close>
-  );
-}
-
 function AlertDialogCancel({
   children,
   className,
@@ -137,6 +111,5 @@ export {
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogAction,
   AlertDialogCancel,
 };

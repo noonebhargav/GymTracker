@@ -15,7 +15,7 @@
 | Database | `expo-sqlite` v56 |
 | Icons | `lucide-react-native` |
 | Animation | `react-native-reanimated` v4, `tw-animate-css` |
-| Keyboard | `react-native-keyboard-controller` |
+| Keyboard | `react-native` |
 | Gestures | `react-native-gesture-handler` |
 
 ## Directory Structure
@@ -48,7 +48,6 @@ app/
 
 components/
   navigation/tab-bar.tsx            # Custom bottom tab bar
-  exercise-detail.tsx               # Exercise info card (GIF, target, equipment)
   exercise-row.tsx                  # List row for a single exercise
   workout-screen.tsx                # Shared workout screen (tabs + search + list)
   history/
@@ -60,8 +59,9 @@ components/
     button.tsx                      # CVA button variants
     icon.tsx                        # Lucide icon wrapper
     ruler-wheel.tsx                 # Horizontal scroll ruler picker
+    screen-wrapper.tsx              # Safe-area screen wrapper
     segmented-control.tsx           # Segmented toggle row
-    switch.tsx                      # Toggle switch
+    tabs.tsx                        # Tabs component
     text.tsx                        # Themed text component
 
 lib/
@@ -69,11 +69,12 @@ lib/
   accent-colors.ts                  # Accent color definitions + CSS variable injection
   accent-store.ts                   # Zustand-like accent color global state
   asset-map.ts                      # exercise id → image/GIF asset require() map
+  date-utils.ts                     # Date formatting & day-mapping helpers
   exercise-assets.ts                # Helpers for resolving exercise image/video URIs
   exercise-groups.ts                # Gold Standard groups + equipment consolidation
-  seedData.json                     # 1,324 exercises (body_part, target, equipment, images)
+  seed_data.json                    # 1,324 exercises (body_part, target, equipment, images)
   theme.ts                          # Navigation theme (light/dark)
-  use-responsive.ts                 # Screen-size breakpoint hook
+  use-today.ts                      # Today's date hook
   utils.ts                          # cn(), capitalizeWords()
 
 assets/
@@ -113,7 +114,7 @@ npx tsc --noEmit    # Type-check the project
 - Feature components go in `components/` (not `ui/`).
 
 ### Data
-- All data operations use `expo-sqlite`. Import and seed from `@/lib/seedData.json`.
+- All data operations use `expo-sqlite`. Import and seed from `@/lib/seed_data.json`.
 - Use the `native-data-fetching` skill for all SQLite queries.
 - Exercise categories map to 8 "Gold Standard" groups: Chest, Back, Shoulders, Biceps, Triceps, Legs, Core/Abs, Cardio.
 
