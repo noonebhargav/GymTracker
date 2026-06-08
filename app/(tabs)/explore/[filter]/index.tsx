@@ -12,11 +12,13 @@ import { Text } from '@/components/ui/text';
 import { ScreenWrapper } from '@/components/ui/screen-wrapper';
 import { ExerciseRow as ExerciseRowComponent, RowChevron } from '@/components/exercise-row';
 import { useSQLiteContext } from 'expo-sqlite';
-import { ArrowLeft, Search } from 'lucide-react-native';
+import { ArrowLeft, Search, X } from 'lucide-react-native';
 import { capitalizeWords } from '@/lib/utils';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, View, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, TextInput, View, ActivityIndicator } from 'react-native';
+import { useUniwind } from 'uniwind';
+import { THEME } from '@/lib/theme';
 
 const PRIMARY_LOWER = PRIMARY_EQUIPMENT.map((e) => e.toLowerCase());
 
@@ -43,9 +45,13 @@ function resolveFilter(raw: string): { type: 'group' | 'equipment'; value: strin
 
 export default function FilterPage() {
   const db = useSQLiteContext();
+  const { theme } = useUniwind();
+  const placeholderColor =
+    theme === 'dark' ? THEME.dark.mutedForeground : THEME.light.mutedForeground;
   const { filter } = useLocalSearchParams<{ filter: string }>();
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
   const resolved = resolveFilter(filter ?? '');
 
   useEffect(() => {
@@ -80,7 +86,36 @@ export default function FilterPage() {
     return exercises;
   }, [exercises, resolved]);
 
-  const label = resolved?.label ?? filter;
+  const visible = useMemo(() => {
+    if (searchText.length === 0) return filtered;
+    const q = searchText.toLowerCase();
+    return filtered.filter(
+      (e) =>
+        e.name.toLowerCase().includes(q) ||
+        e.body_part.toLowerCase().includes(q) ||
+        e.target?.toLowerCase().includes(q) ||
+        e.equipment?.toLowerCase().includes(q)
+    );
+  }, [filtered, searchText]);
+
+  const label = resolved?.label ?? filter ?? 'exercises';
+
+  const renderItem = useCallback(
+    ({ item }: { item: ExerciseRow }) => {
+      const g = toGoldStandardGroup(item.body_part, item.target);
+      return (
+        <ExerciseRowComponent
+          name={item.name}
+          equipment={item.equipment}
+          group={g}
+          assetId={item.assetId}
+          right={<RowChevron />}
+          onPress={() => router.push(`/explore/${filter}/${item.id}`)}
+        />
+      );
+    },
+    [filter]
+  );
 
   return (
     <ScreenWrapper>
@@ -93,37 +128,51 @@ export default function FilterPage() {
           <Icon as={ArrowLeft} className="size-5 text-foreground" aria-hidden={true} />
         </Pressable>
         <Text className="text-base font-semibold text-foreground flex-1">
-          {label} ({filtered.length})
+          {label} ({visible.length})
         </Text>
+      </View>
+      {/* Search bar */}
+      <View className="px-4 pt-2 pb-2">
+        <View className="flex-row items-center bg-secondary rounded-full px-3 h-[46px] border border-border">
+          <Icon as={Search} className="size-4 text-muted-foreground mr-2.5" aria-hidden={true} />
+          <TextInput
+            className="flex-1 text-sm text-foreground"
+            placeholder={`Search ${label}…`}
+            placeholderTextColor={placeholderColor}
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            autoComplete="off"
+            aria-label={`Search ${label}`}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} className="p-3.5" aria-label="Clear search">
+              <Icon as={X} className="size-4 text-muted-foreground" aria-hidden={true} />
+            </Pressable>
+          )}
+        </View>
       </View>
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8 py-20">
           <Icon as={Search} className="size-12 text-muted-foreground mb-4" aria-hidden={true} />
           <Text className="text-base text-muted-foreground text-center">
-            No exercises found for {label}
+            {searchText.length > 0
+              ? `No exercises found for “${searchText}”`
+              : `No exercises found for ${label}`}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={visible}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const g = toGoldStandardGroup(item.body_part, item.target);
-            return (
-              <ExerciseRowComponent
-                name={item.name}
-                equipment={item.equipment}
-                group={g}
-                assetId={item.assetId}
-                right={<RowChevron />}
-                onPress={() => router.push(`/explore/${filter}/${item.id}`)}
-              />
-            );
-          }}
+          keyboardShouldPersistTaps="handled"
+          renderItem={renderItem}
         />
       )}
     </ScreenWrapper>
